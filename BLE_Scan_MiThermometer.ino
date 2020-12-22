@@ -7,6 +7,9 @@
 
    Custom firmware is found at: https://github.com/atc1441/ATC_MiThermometer
 
+   BLE is supposed to be integrated into Arduino directly now, however I could not find any docuetation or source code.
+   You can refer to the old snapshot for reference: https://github.com/nkolban/ESP32_BLE_Arduino/tree/master/src
+
    Based on the example "BLE_scan" from Arduino core for the ESP32: https://github.com/espressif/arduino-esp32
 
    Based on Neil Kolban example for IDF: https://github.com/nkolban/esp32-snippets/blob/master/cpp_utils/tests/BLE%20Tests/SampleScan.cpp
@@ -27,7 +30,7 @@
 // Duration in seconds used for scanning sessions
 #define SCAN_INTERVAL 5
 // Duration in miliseconds taken for delay between scan sessions
-#define SCAN_PAUSE 2000
+#define SCAN_PAUSE 20000
 
 
 // Thanks to Mat at StackExchange for hex string conversion.
@@ -46,24 +49,45 @@ std::string hexStr(unsigned char *data, int len)
 
 BLEScan* pBLEScan;
 
-char jsonBuffer[sizeof("{id: \"123456\", temperature: 00.00, humidity: 00, bat_level: 00, bat_voltage: 0.000}")];
-const char* formatSensorData(const char *sd) {
-  const char *id = hexStr((unsigned char*)(sd + 3), 3).c_str();
-  int16_t temp = FLIP_ENDIAN ? __builtin_bswap16(*(int16_t *)(sd + 6)) : *(int16_t *)(sd + 6);
+// Bluetooth device name can be between 0 and 248 octets but we will only pass the first 24 characters.
+#define JSON_EXAMPLE "{id: \"001122334455\", temperature: 00.00, humidity: 00, battery_lvl: 00, battery_v: 0.000, rssi: -32768, name: \"_SHORTENED_DEVICE_NAME__\"}"
+#define JSON_TEMPLATE "{id: \"%.12s\", temperature: %.1f, humidity: %i, battery_lvl: %i, battery_v: %.3f, rssi: %i%s}"
+const size_t JSON_BUFFER_SIZE = sizeof(JSON_EXAMPLE);
+
+const char* formatSensorData(char * jsonBuffer, BLEAdvertisedDevice advertisedDevice) {
+  std::string sensorData = advertisedDevice.getServiceData();
+  const char *sensorData_ptr = sensorData.c_str();
+  std::string id = hexStr((unsigned char*)(sensorData_ptr), 6);
+  int16_t temp = FLIP_ENDIAN ? __builtin_bswap16(*(int16_t *)(sensorData_ptr + 6)) : *(int16_t *)(sensorData_ptr + 6);
   double temperature = 1.0 * temp / 10;
-  byte *humidity = (byte *) (sd + 8);
-  byte *battery_level = (byte *) (sd + 9);
-  int16_t volt = FLIP_ENDIAN ? __builtin_bswap16(*(int16_t *)(sd + 10)) : *(int16_t *)(sd + 10);
+  byte *humidity = (byte *) (sensorData_ptr + 8);
+  byte *battery_level = (byte *) (sensorData_ptr + 9);
+  int16_t volt = FLIP_ENDIAN ? __builtin_bswap16(*(int16_t *)(sensorData_ptr + 10)) : *(int16_t *)(sensorData_ptr + 10);
   double voltage = 1.0 * volt / 1000;
+
+  // RSSI (Received Signal Strength Indicator) is a negative dBm value.
+  // Lower values mean lesser signal strengths (e.g. -20 is good, -120 is bad). 
+  short rssi = advertisedDevice.haveRSSI() && advertisedDevice.getRSSI() >= -32768
+                ? advertisedDevice.getRSSI()
+                : 404;
+
+  char nameJson[35];
+  if (advertisedDevice.haveName()) {
+    std::string name = advertisedDevice.getName();
+    sprintf(nameJson, ", name: \"%.24s\"", name.c_str());
+  } else {
+    nameJson[0] = '\0';
+  }
   
   sprintf(jsonBuffer,
-          //"A %04i B",
-          "{id: \"%.6s\", temperature: %.1f, humidity: %i, bat_level: %i, bat_voltage: %.3f}",
-          id,
+          JSON_TEMPLATE,
+          id.c_str(),
           temperature,
           *humidity,
           *battery_level,
-          voltage);
+          voltage,
+          rssi,
+          nameJson);
   return jsonBuffer;
 }
 
@@ -75,11 +99,14 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
       }
 
       BLEUUID uid = advertisedDevice.getServiceDataUUID();
-      if (uid.toString().rfind(SERVICE_DATA_UID, 0) != 0) {
+      if (!advertisedDevice.haveServiceData() || uid.toString().rfind(SERVICE_DATA_UID, 0) != 0) {
         return;
       }
-      
-      Serial.println(formatSensorData(advertisedDevice.getServiceData().c_str()));
+
+      char jsonBuffer[JSON_BUFFER_SIZE];
+      formatSensorData(jsonBuffer, advertisedDevice);
+      Serial.println(jsonBuffer);
+
       // TODO: Send data via MQTT
     }
 };
