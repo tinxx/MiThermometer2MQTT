@@ -10,16 +10,19 @@
    BLE is supposed to be integrated into Arduino directly now, however I could not find any docuetation or source code.
    You can refer to the old snapshot for reference: https://github.com/nkolban/ESP32_BLE_Arduino/tree/master/src
 
+   *** PLEASE NOTE ***
+   To get this app compiled for the ESP32 we need to go to Tools menu in Arduino IDE
+   and select Partition Scheme: "HUGE APP (3MB No OTA/1MB SPIFFS)".
+
+   ----------
    Based on the example "BLE_scan" from Arduino core for the ESP32: https://github.com/espressif/arduino-esp32
 
    Based on Neil Kolban example for IDF: https://github.com/nkolban/esp32-snippets/blob/master/cpp_utils/tests/BLE%20Tests/SampleScan.cpp
    Ported to Arduino ESP32 by Evandro Copercini
 */
 
-#include <BLEDevice.h>
-#include <BLEUtils.h>
-#include <BLEScan.h>
-#include <BLEAdvertisedDevice.h>
+// Builtin LED for ESP-WROOM-32 DevBoard
+#define LED_BUILTIN 2
 
 // Flip endianness of values when interpreting data received from sensor (true for ESP32 <-> Mi Thermometer)
 #define FLIP_ENDIAN true
@@ -31,6 +34,16 @@
 #define SCAN_INTERVAL 5
 // Duration in miliseconds taken for delay between scan sessions
 #define SCAN_PAUSE 20000
+
+// Bluetooth
+#include <BLEDevice.h>
+#include <BLEUtils.h>
+#include <BLEScan.h>
+#include <BLEAdvertisedDevice.h>
+
+// Wifi
+#include <WiFi.h>
+#include "WifiData.h"
 
 
 // Thanks to Mat at StackExchange for hex string conversion.
@@ -113,8 +126,27 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
 
 void setup() {
   Serial.begin(115200);
-  Serial.println("Scanning...");
 
+  // Wifi setup
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(WIFI_SSID, WIFI_PSK);
+  Serial.println();
+  // Wait for connection
+  while (WiFi.status() != WL_CONNECTED) {
+    digitalWrite(LED_BUILTIN, HIGH);
+    delay(500);
+    digitalWrite(LED_BUILTIN, LOW);
+    Serial.print(".");
+  }
+  Serial.println();
+  Serial.print("Connected to ");
+  Serial.println(WIFI_SSID);
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
+
+  Serial.println("Start scanning...");
+
+  // Bluetooth setup
   BLEDevice::init("");
   pBLEScan = BLEDevice::getScan(); //create new scan
   pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
@@ -125,6 +157,6 @@ void setup() {
 
 void loop() {
   BLEScanResults foundDevices = pBLEScan->start(SCAN_INTERVAL, false);
-  pBLEScan->clearResults();   // delete results fromBLEScan buffer to release memory
+  pBLEScan->clearResults();   // delete results from BLEScan buffer to release memory
   delay(SCAN_PAUSE);
 }
