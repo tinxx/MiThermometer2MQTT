@@ -38,7 +38,7 @@
 // Duration in seconds used for scanning sessions
 #define SCAN_INTERVAL 5
 // Duration in miliseconds taken for delay between scan sessions
-#define SCAN_PAUSE 20000
+#define SCAN_PAUSE 30000
 
 // Wifi password and MQTT credentials are defined there. Changes are ignored by git.
 #include "secrets.h"
@@ -83,11 +83,11 @@ std::string hexStr(unsigned char *data, int len)
 BLEScan* pBLEScan;
 
 // Bluetooth device name can be between 0 and 248 octets but we will only pass the first 24 characters.
-#define JSON_EXAMPLE "{\"id\": \"001122334455\", \"temperature\": 00.00, \"humidity\": 00, \"battery\": 00, \"voltage\": -32768, \"rssi\": -32768, \"linkquality\": 100, name: \"_SHORTENED_DEVICE_NAME__\"}"
+#define JSON_EXAMPLE "{\"id\": \"001122334455\", \"temperature\": 00.00, \"humidity\": 00, \"battery\": 00, \"voltage\": -32768, \"rssi\": -32768, \"linkquality\": 100, \"name\": \"_SHORTENED_DEVICE_NAME__\"}"
 #define JSON_TEMPLATE "{\"id\": \"%.12s\", \"temperature\": %.1f, \"humidity\": %i, \"battery\": %i, \"voltage\": %i, \"rssi\": %i, \"linkquality\": %i%s}"
 const size_t JSON_BUFFER_SIZE = sizeof(JSON_EXAMPLE);
 
-const char* formatSensorData(char * jsonBuffer, BLEAdvertisedDevice advertisedDevice) {
+std::string formatSensorData(char * jsonBuffer, BLEAdvertisedDevice advertisedDevice) {
   std::string sensorData = advertisedDevice.getServiceData();
   const char *sensorData_ptr = sensorData.c_str();
   std::string id = hexStr((unsigned char*)(sensorData_ptr), 6);
@@ -108,7 +108,7 @@ const char* formatSensorData(char * jsonBuffer, BLEAdvertisedDevice advertisedDe
   char nameJson[35];
   if (advertisedDevice.haveName()) {
     std::string name = advertisedDevice.getName();
-    sprintf(nameJson, ", name: \"%.24s\"", name.c_str());
+    sprintf(nameJson, ", \"name\": \"%.24s\"", name.c_str());
   } else {
     nameJson[0] = '\0';
   }
@@ -123,7 +123,8 @@ const char* formatSensorData(char * jsonBuffer, BLEAdvertisedDevice advertisedDe
           rssi,
           linkquality,
           nameJson);
-  return jsonBuffer;
+
+  return id;
 }
 
 class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
@@ -139,8 +140,11 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
       }
 
       char jsonBuffer[JSON_BUFFER_SIZE];
-      formatSensorData(jsonBuffer, advertisedDevice);
-      mqttClient.beginMessage(mqtt_topic);
+      std::string id = formatSensorData(jsonBuffer, advertisedDevice);
+      char topic[sizeof(mqtt_topic) + 13];
+      sprintf(topic, "%s/%s", mqtt_topic, id.c_str());
+      Serial.println(topic);
+      mqttClient.beginMessage(topic);
       mqttClient.print(jsonBuffer);
       mqttClient.endMessage();
       Serial.println(jsonBuffer);
@@ -173,7 +177,7 @@ void setup() {
     Serial.printf("MQTT connection failed! Error code = %i\n", mqttClient.connectError());
     while (1);
   }
-  Serial.print("Connected to the MQTT broker... ");
+  Serial.println("Connected to the MQTT broker.");
 
   // Bluetooth setup
   BLEDevice::init("");
@@ -183,7 +187,7 @@ void setup() {
   pBLEScan->setInterval(100);
   pBLEScan->setWindow(99);  // less or equal setInterval value
 
-  Serial.println("Start scanning...\n");
+  Serial.println("Entering main loop...\n");
 }
 
 void loop() {
