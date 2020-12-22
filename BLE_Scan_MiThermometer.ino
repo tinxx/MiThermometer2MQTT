@@ -12,7 +12,11 @@
 
    *** PLEASE NOTE ***
    To get this app compiled for the ESP32 we need to go to Tools menu in Arduino IDE
-   and select Partition Scheme: "HUGE APP (3MB No OTA/1MB SPIFFS)".
+   and select a Partition Scheme with at least ca. 1.5 MB for APP, e.g.:
+     - "No OTA (2MB APP/2MB SPIFFS)"
+     - "No OTA (2MB APP/2MB FATFS)"
+     - "HUGE APP (3MB No OTA/1MB SPIFFS)"
+     - "Minimal SPIFFS (1.9MB APP with OTA/190KB SPIFFS"
 
    ----------
    Bluetooth part based on the example "BLE_scan" from Arduino core for the ESP32: https://github.com/espressif/arduino-esp32
@@ -79,8 +83,8 @@ std::string hexStr(unsigned char *data, int len)
 BLEScan* pBLEScan;
 
 // Bluetooth device name can be between 0 and 248 octets but we will only pass the first 24 characters.
-#define JSON_EXAMPLE "{id: \"001122334455\", temperature: 00.00, humidity: 00, battery_lvl: 00, battery_v: 0.000, rssi: -32768, name: \"_SHORTENED_DEVICE_NAME__\"}"
-#define JSON_TEMPLATE "{id: \"%.12s\", temperature: %.1f, humidity: %i, battery_lvl: %i, battery_v: %.3f, rssi: %i%s}"
+#define JSON_EXAMPLE "{\"id\": \"001122334455\", \"temperature\": 00.00, \"humidity\": 00, \"battery\": 00, \"voltage\": -32768, \"rssi\": -32768, \"linkquality\": 100, name: \"_SHORTENED_DEVICE_NAME__\"}"
+#define JSON_TEMPLATE "{\"id\": \"%.12s\", \"temperature\": %.1f, \"humidity\": %i, \"battery\": %i, \"voltage\": %i, \"rssi\": %i, \"linkquality\": %i%s}"
 const size_t JSON_BUFFER_SIZE = sizeof(JSON_EXAMPLE);
 
 const char* formatSensorData(char * jsonBuffer, BLEAdvertisedDevice advertisedDevice) {
@@ -91,14 +95,15 @@ const char* formatSensorData(char * jsonBuffer, BLEAdvertisedDevice advertisedDe
   double temperature = 1.0 * temp / 10;
   byte *humidity = (byte *) (sensorData_ptr + 8);
   byte *battery_level = (byte *) (sensorData_ptr + 9);
-  int16_t volt = FLIP_ENDIAN ? __builtin_bswap16(*(int16_t *)(sensorData_ptr + 10)) : *(int16_t *)(sensorData_ptr + 10);
-  double voltage = 1.0 * volt / 1000;
+  int16_t voltage = FLIP_ENDIAN ? __builtin_bswap16(*(int16_t *)(sensorData_ptr + 10)) : *(int16_t *)(sensorData_ptr + 10);
 
   // RSSI (Received Signal Strength Indicator) is a negative dBm value.
   // Lower values mean lesser signal strengths (e.g. -20 is good, -120 is bad). 
   short rssi = advertisedDevice.haveRSSI() && advertisedDevice.getRSSI() >= -32768
                 ? advertisedDevice.getRSSI()
                 : 404;
+  size_t linkquality = 0;
+  if (rssi < 0 && rssi > -120) linkquality = rssi >= -20 ? 100 : 100 + std::round(rssi + 20);
 
   char nameJson[35];
   if (advertisedDevice.haveName()) {
@@ -116,6 +121,7 @@ const char* formatSensorData(char * jsonBuffer, BLEAdvertisedDevice advertisedDe
           *battery_level,
           voltage,
           rssi,
+          linkquality,
           nameJson);
   return jsonBuffer;
 }
@@ -156,26 +162,18 @@ void setup() {
     Serial.print(".");
   }
   Serial.println();
-  Serial.print("Connected to ");
-  Serial.println(WIFI_SSID);
-  Serial.print("IP address: ");
-  Serial.println(WiFi.localIP());
-  Serial.println();
+  Serial.printf("Connected to Wifi network %s (%s).\n", WIFI_SSID, WiFi.localIP().toString().c_str());
 
   // MQTT setup
   mqttClient.setId(MQTT_CLIENTID);
   mqttClient.setUsernamePassword(MQTT_USER, MQTT_PASS);
 
-  Serial.print("Attempting to connect to the MQTT broker: ");
-  Serial.println(mqtt_broker);
+  Serial.printf("Attempting to connect to the MQTT broker at %s:%i.\n", mqtt_broker, mqtt_port);
   if (!mqttClient.connect(mqtt_broker, mqtt_port)) {
-    Serial.print("MQTT connection failed! Error code = ");
-    Serial.println(mqttClient.connectError());
-
+    Serial.printf("MQTT connection failed! Error code = %i\n", mqttClient.connectError());
     while (1);
   }
-  Serial.println("You're connected to the MQTT broker!");
-  Serial.println();
+  Serial.print("Connected to the MQTT broker... ");
 
   // Bluetooth setup
   BLEDevice::init("");
@@ -185,7 +183,7 @@ void setup() {
   pBLEScan->setInterval(100);
   pBLEScan->setWindow(99);  // less or equal setInterval value
 
-  Serial.println("Start scanning...");
+  Serial.println("Start scanning...\n");
 }
 
 void loop() {
