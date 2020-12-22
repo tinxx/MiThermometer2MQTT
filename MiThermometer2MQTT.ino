@@ -1,29 +1,10 @@
 /*
-   Bluetooth Low Energy Scanner for Mi Thermometer with custom firmware for ESP32.
+   MiThermometer2MQTT
+   ==================
+   
+   Picks up the sensor data of Mi Thermometers with custom firmware and sends it to a MQTT broker.
 
-   Scans the ether for sensor data advertised by Mi Thermometer with custom firmware (see link below).
-   The sensor data is written to the serial console in JSON format and should eventually be sent
-   advertised via MQTT, too, to make it directly available to, e.g.,  Home Assistant.
-
-   Custom firmware is found at: https://github.com/atc1441/ATC_MiThermometer
-
-   BLE is supposed to be integrated into Arduino directly now, however I could not find any docuetation or source code.
-   You can refer to the old snapshot for reference: https://github.com/nkolban/ESP32_BLE_Arduino/tree/master/src
-
-   *** PLEASE NOTE ***
-   To get this app compiled for the ESP32 we need to go to Tools menu in Arduino IDE
-   and select a Partition Scheme with at least ca. 1.5 MB for APP, e.g.:
-     - "No OTA (2MB APP/2MB SPIFFS)"
-     - "No OTA (2MB APP/2MB FATFS)"
-     - "HUGE APP (3MB No OTA/1MB SPIFFS)"
-     - "Minimal SPIFFS (1.9MB APP with OTA/190KB SPIFFS"
-
-   ----------
-   Bluetooth part based on the example "BLE_scan" from Arduino core for the ESP32: https://github.com/espressif/arduino-esp32
-      Based on Neil Kolban example for IDF: https://github.com/nkolban/esp32-snippets/blob/master/cpp_utils/tests/BLE%20Tests/SampleScan.cpp
-      Ported to Arduino ESP32 by Evandro Copercini
-
-   MQTT part based on the example "WiFiSimpleSender" from Arduino library ArduinoMqttClient (ver 0.1.5 Beta).
+   See README.md for more information.
 */
 
 // Builtin LED for ESP-WROOM-32 DevBoard
