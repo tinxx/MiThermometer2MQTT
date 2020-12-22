@@ -15,10 +15,11 @@
    and select Partition Scheme: "HUGE APP (3MB No OTA/1MB SPIFFS)".
 
    ----------
-   Based on the example "BLE_scan" from Arduino core for the ESP32: https://github.com/espressif/arduino-esp32
+   Bluetooth part based on the example "BLE_scan" from Arduino core for the ESP32: https://github.com/espressif/arduino-esp32
+      Based on Neil Kolban example for IDF: https://github.com/nkolban/esp32-snippets/blob/master/cpp_utils/tests/BLE%20Tests/SampleScan.cpp
+      Ported to Arduino ESP32 by Evandro Copercini
 
-   Based on Neil Kolban example for IDF: https://github.com/nkolban/esp32-snippets/blob/master/cpp_utils/tests/BLE%20Tests/SampleScan.cpp
-   Ported to Arduino ESP32 by Evandro Copercini
+   MQTT part based on the example "WiFiSimpleSender" from Arduino library ArduinoMqttClient (ver 0.1.5 Beta).
 */
 
 // Builtin LED for ESP-WROOM-32 DevBoard
@@ -35,6 +36,9 @@
 // Duration in miliseconds taken for delay between scan sessions
 #define SCAN_PAUSE 20000
 
+// Wifi password and MQTT credentials are defined there. Changes are ignored by git.
+#include "secrets.h"
+
 // Bluetooth
 #include <BLEDevice.h>
 #include <BLEUtils.h>
@@ -43,7 +47,19 @@
 
 // Wifi
 #include <WiFi.h>
-#include "WifiData.h"
+
+// MQTT
+#include <ArduinoMqttClient.h>
+
+WiFiClient wifiClient;
+MqttClient mqttClient(wifiClient);
+
+const char mqtt_broker[] = MQTT_SERVER;
+int        mqtt_port     = MQTT_PORT;
+const char mqtt_topic[]  = MQTT_TOPIC;
+
+unsigned long previousMillis = 0;
+int count = 0;
 
 
 // Thanks to Mat at StackExchange for hex string conversion.
@@ -118,9 +134,10 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
 
       char jsonBuffer[JSON_BUFFER_SIZE];
       formatSensorData(jsonBuffer, advertisedDevice);
+      mqttClient.beginMessage(mqtt_topic);
+      mqttClient.print(jsonBuffer);
+      mqttClient.endMessage();
       Serial.println(jsonBuffer);
-
-      // TODO: Send data via MQTT
     }
 };
 
@@ -143,8 +160,22 @@ void setup() {
   Serial.println(WIFI_SSID);
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
+  Serial.println();
 
-  Serial.println("Start scanning...");
+  // MQTT setup
+  mqttClient.setId(MQTT_CLIENTID);
+  mqttClient.setUsernamePassword(MQTT_USER, MQTT_PASS);
+
+  Serial.print("Attempting to connect to the MQTT broker: ");
+  Serial.println(mqtt_broker);
+  if (!mqttClient.connect(mqtt_broker, mqtt_port)) {
+    Serial.print("MQTT connection failed! Error code = ");
+    Serial.println(mqttClient.connectError());
+
+    while (1);
+  }
+  Serial.println("You're connected to the MQTT broker!");
+  Serial.println();
 
   // Bluetooth setup
   BLEDevice::init("");
@@ -153,10 +184,23 @@ void setup() {
   pBLEScan->setActiveScan(false); //active scan uses more power, but get results faster
   pBLEScan->setInterval(100);
   pBLEScan->setWindow(99);  // less or equal setInterval value
+
+  Serial.println("Start scanning...");
 }
 
 void loop() {
-  BLEScanResults foundDevices = pBLEScan->start(SCAN_INTERVAL, false);
-  pBLEScan->clearResults();   // delete results from BLEScan buffer to release memory
-  delay(SCAN_PAUSE);
+  // call poll() regularly to allow the library to send MQTT keep alives which
+  // avoids being disconnected by the broker
+  mqttClient.poll();
+
+  // avoid having delays in loop, we'll use the strategy from BlinkWithoutDelay
+  // see: File -> Examples -> 02.Digital -> BlinkWithoutDelay for more info
+  unsigned long currentMillis = millis();
+  if (currentMillis - previousMillis >= SCAN_PAUSE) {
+    previousMillis = currentMillis;
+
+    // Bluetooth
+    BLEScanResults foundDevices = pBLEScan->start(SCAN_INTERVAL, false);
+    pBLEScan->clearResults();   // delete results from BLEScan buffer to release memory
+  }
 }
