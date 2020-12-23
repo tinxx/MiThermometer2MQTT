@@ -17,8 +17,22 @@ All other Bluetooth LE advertisements will be ignored.
 
 ## Configuration
 
+### Builtin LED
+
+I found the LED to be connected to a variety of different pins on different ESP32 boards I own.
+To make the LED work on your specific board set `#define LED_BUILTIN` to the correct value.
+It might be one of the following:
+
+- ESP-WROOM-32 development board: `2`
+- WEMOS LoLin32 development board: `5`
+- ESP32 NodeMCU development board: `22`
+
+### Wifi
+
 To configure Wifi SSID/Password and MQTT server/login/topic just edit `secrets.h` before compilation.
 (The file is marked so that it will not show up as changed in git so that you don't accidentally check in your credentials.)
+
+### MQTT
 
 The configured `MQTT_TOPIC` will be used as prefix and will be prefixed to the device id (MAC address) that is the first part of the [custom advertising format](https://github.com/atc1441/ATC_MiThermometer#advertising-format-of-the-custom-firmware).  
 Say the configured `MQTT_TOPIC` is `bluetooth/sensors` and your device id is `00:11:22:33:44:55` then the resulting topic for this device will be `bluetooth/sensors/001122334455`.
@@ -44,6 +58,22 @@ The link quality is roughly calculated from the Bluetooth RSSI.
 RSSI values between `0` and `-20` will be considered as `100` link quality.
 RSSI values between `-20` and `-120` will be inversely proportionally mapped onto link quality values between `100` and `0`.
 
+### Internal Sensor BME280
+
+So if we are already putting a device somewhere in our apartment to pick up temperature measurements from dispersed Mi Thermometers, why not make it also measure the temperature, too, right?!  
+To allow this we can add an inexpensive *BME280* module to the mix.
+
+The following steps are necessary to activate the BME280 sensor:
+
+- Connect the sensor to your ESP32:
+  - VIN -> 3.3V / 3V3 
+  - GND -> GND
+  - SDA -> SDA (Serial Data)
+  - SCK / SCL -> SCL (Serial Clock)
+- Uncomment `#include "BME280_Module.h"` to compile the necessary code for BME280 sensor.
+
+If sensor code is activated but no BME280 sensor is found, a warning will be printed to serial terminal.
+
 ## Dependencies
 
 The code can be compiled with [Arduino for ESP32](https://github.com/espressif/arduino-esp32). Tested with version 1.0.4.
@@ -52,6 +82,7 @@ Furthermore, you will need the following libraries installed in your Arduino IDE
 
 - [Wifi](https://github.com/arduino-libraries/WiFi) (tested with version 1.2.7)
 - [ArduinoMqttClient](https://github.com/arduino-libraries/ArduinoMqttClient) (tested with version 0.1.5 BETA)
+- *(optional)* [BME280](https://github.com/finitespace/BME280) (tested with version 2.3.0)
 
 BLE is supposed to be integrated into Arduino directly now, however I could not swiftly find any documentation or source code.
 However, you can refer to the [old snapshot](https://github.com/nkolban/ESP32_BLE_Arduino/tree/master/src) for reference.

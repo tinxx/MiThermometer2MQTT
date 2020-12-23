@@ -7,8 +7,13 @@
    See README.md for more information.
 */
 
-// Builtin LED for ESP-WROOM-32 DevBoard
-#define LED_BUILTIN 2
+// Builtin LED pin
+// #define LED_BUILTIN 2 // ESP-WROOM-32 DevBoard
+#define LED_BUILTIN 5 // WEMOS LoLin32 DevBoard
+// #define LED_BUILTIN 22 // ESP32 NodeMCU DevBoard
+
+// Baud rate for serial terminal
+#define SERIAL_BAUD 115200
 
 // Flip endianness of values when interpreting data received from sensor (true for ESP32 <-> Mi Thermometer)
 #define FLIP_ENDIAN true
@@ -23,6 +28,12 @@
 
 // Wifi password and MQTT credentials are defined there. Changes are ignored by git.
 #include "secrets.h"
+
+// BME280 sensor
+#include "BME280_Module.h" // Uncomment to enable sensor
+#ifdef USE_BME280_SENSOR
+#include <Wire.h>
+#endif // USE_BME280_SENSOR
 
 // Bluetooth
 #include <BLEDevice.h>
@@ -124,7 +135,6 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
       std::string id = formatSensorData(jsonBuffer, advertisedDevice);
       char topic[sizeof(mqtt_topic) + 13];
       sprintf(topic, "%s/%s", mqtt_topic, id.c_str());
-      Serial.println(topic);
       mqttClient.beginMessage(topic);
       mqttClient.print(jsonBuffer);
       mqttClient.endMessage();
@@ -133,17 +143,27 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
 };
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(SERIAL_BAUD);
+  pinMode(LED_BUILTIN, OUTPUT);
+  Serial.println();
+
+  // BME280 setup
+#ifdef USE_BME280_SENSOR
+  Wire.begin();
+  digitalWrite(LED_BUILTIN, 0);
+  setup_bcm280_module();
+  digitalWrite(LED_BUILTIN, 1);
+#endif // USE_BME280_SENSOR
 
   // Wifi setup
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PSK);
-  Serial.println();
   // Wait for connection
   while (WiFi.status() != WL_CONNECTED) {
-    digitalWrite(LED_BUILTIN, HIGH);
+    digitalWrite(LED_BUILTIN, 0);
     delay(500);
-    digitalWrite(LED_BUILTIN, LOW);
+    digitalWrite(LED_BUILTIN, 1);
+    delay(500);
     Serial.print(".");
   }
   Serial.println();
@@ -182,7 +202,19 @@ void loop() {
   if (currentMillis - previousMillis >= SCAN_PAUSE) {
     previousMillis = currentMillis;
 
-    // Bluetooth
+#ifdef USE_BME280_SENSOR
+  // Process attached BME280 sensor data
+  char jsonBuffer[JSON_BUFFER_SIZE_BME];
+  std::string id = formatBmeSensorData(jsonBuffer);
+  char topic[sizeof(mqtt_topic) + sizeof(BME_MQTT_UID) + 1];
+  sprintf(topic, "%s/%s", mqtt_topic, id.c_str());
+  mqttClient.beginMessage(topic);
+  mqttClient.print(jsonBuffer);
+  mqttClient.endMessage();
+  Serial.println(jsonBuffer);
+#endif // USE_BME280_SENSOR
+
+    // Bluetooth scan
     BLEScanResults foundDevices = pBLEScan->start(SCAN_INTERVAL, false);
     pBLEScan->clearResults();   // delete results from BLEScan buffer to release memory
   }
