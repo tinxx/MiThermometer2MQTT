@@ -30,7 +30,7 @@
 #include "secrets.h"
 
 // BME280 sensor
-#include "BME280_Module.h" // Uncomment to enable sensor
+// #include "BME280_Module.h" // Uncomment to enable sensor
 #ifdef USE_BME280_SENSOR
 #include <Wire.h>
 #endif // USE_BME280_SENSOR
