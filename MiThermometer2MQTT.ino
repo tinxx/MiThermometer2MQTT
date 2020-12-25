@@ -30,7 +30,7 @@
 #include "secrets.h"
 
 // BME280 sensor
-// #include "BME280_Module.h" // Uncomment to enable sensor
+// #include "Module_BME280.h" // Uncomment to enable sensor
 #ifdef USE_BME280_SENSOR
 #include <Wire.h>
 #endif // USE_BME280_SENSOR
@@ -152,6 +152,26 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
   }
 };
 
+
+void publishState(bool online = true) {
+  char topic[] = MQTT_TOPIC_STATUS;
+  mqttClient.beginMessage(topic, 
+                          true, // retain
+                          1);   // qos
+  mqttClient.print(online ? "online" : "offline");
+  mqttClient.endMessage();
+}
+
+void publishWill() {
+  char topic[] = MQTT_TOPIC_STATUS;
+  mqttClient.beginWill(topic, 
+                       true, // retain
+                       1);   // qos
+  mqttClient.print("offline");
+  mqttClient.endWill();
+}
+
+
 void setup() {
   Serial.begin(SERIAL_BAUD);
   pinMode(LED_BUILTIN, OUTPUT);
@@ -197,6 +217,11 @@ void setup() {
   pBLEScan->setActiveScan(false); //active scan uses more power, but get results faster
   pBLEScan->setInterval(100);
   pBLEScan->setWindow(99);  // less or equal setInterval value
+
+  // Online state will be deposited with MQTT broker
+  Serial.println("Publishing retained online state and will...");
+  publishState();
+  publishWill();
 
   Serial.println("Entering main loop...\n");
 }

@@ -59,6 +59,10 @@ The link quality is roughly calculated from the Bluetooth RSSI.
 RSSI values between `0` and `-20` will be considered as `100` link quality.
 RSSI values between `-20` and `-120` will be inversely proportionally mapped onto link quality values between `100` and `0`.
 
+The online state will be deposited with the MQTT broker with topic `MQTT_TOPIC_STATUS`.
+This is done by storing a *retained* message `online` that each client will receive on subscribe.
+The message `offline` is stored as a *will* to be sent after the device disconnected from MQTT broker.
+
 ### Internal Sensor BME280
 
 So if we are already putting a device somewhere in our apartment to pick up temperature measurements from dispersed Mi Thermometers, why not make it also measure the temperature, too, right?!  
