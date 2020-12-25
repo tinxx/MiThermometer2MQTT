@@ -53,6 +53,7 @@ The payload will look something like this:
 ```
 
 Please note that the device *name* seems to be only randomly picked up and will be missing from the JSON object most of the time.
+However, you can manually define a name (see *Configuration*).
 
 The link quality is roughly calculated from the Bluetooth RSSI.
 RSSI values between `0` and `-20` will be considered as `100` link quality.
@@ -73,6 +74,26 @@ The following steps are necessary to activate the BME280 sensor:
 - Uncomment `#include "BME280_Module.h"` to compile the necessary code for BME280 sensor.
 
 If sensor code is activated but no BME280 sensor is found, a warning will be printed to serial terminal.
+
+### Filter Devices (Allow List)
+
+It is possible to define a list of known devices so that unknown devices are ignored (*allow list*).
+
+There are several reasons you might want this, e.g.: 
+
+- There might be multiple devices with this firmware on your network because...
+  - one will not pick up data of all your dispersed thermometers.
+  - you want some kind of logical segmentation (i.e. different Wifi networks/MQTT servers/topics/...). 
+- You might want to avoid picking up your neighbors thermometer data, too.
+
+If that is the case, uncomment `#define ONLY_FORWARD_KNOWN_DEVICES` in `secrets.h` and read the next section about *friendly names*.
+
+### Freindly Device Names
+
+You can define a list of known devices in `secrets.h` along with custom names.
+
+To do this, uncomment the block starting with `#define USE_MAC_NAME_MAPPINGS` by removing `/*` and `*/`.
+Then edit the example definitions in the variable `MAC_NAME_MAPPING`.
 
 ## Dependencies
 

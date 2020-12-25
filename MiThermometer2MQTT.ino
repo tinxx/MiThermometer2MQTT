@@ -79,7 +79,7 @@ BLEScan* pBLEScan;
 #define JSON_TEMPLATE "{\"id\": \"%.12s\", \"temperature\": %.1f, \"humidity\": %i, \"battery\": %i, \"voltage\": %i, \"rssi\": %i, \"linkquality\": %i%s}"
 const size_t JSON_BUFFER_SIZE = sizeof(JSON_EXAMPLE);
 
-std::string formatSensorData(char * jsonBuffer, BLEAdvertisedDevice advertisedDevice) {
+std::string formatSensorData(char * jsonBuffer, BLEAdvertisedDevice advertisedDevice, std::string mac_addr) {
   std::string sensorData = advertisedDevice.getServiceData();
   const char *sensorData_ptr = sensorData.c_str();
   std::string id = hexStr((unsigned char*)(sensorData_ptr), 6);
@@ -97,14 +97,18 @@ std::string formatSensorData(char * jsonBuffer, BLEAdvertisedDevice advertisedDe
   size_t linkquality = 0;
   if (rssi < 0 && rssi > -120) linkquality = rssi >= -20 ? 100 : 100 + std::round(rssi + 20);
 
-  char nameJson[35];
-  if (advertisedDevice.haveName()) {
+  char nameJson[35] = "";
+#ifdef USE_MAC_NAME_MAPPINGS
+  std::map<std::string, std::string>::const_iterator name_it = MAC_NAME_MAPPING.find(mac_addr);
+  if (name_it != MAC_NAME_MAPPING.end()) {
+    sprintf(nameJson, ", \"name\": \"%.24s\"", name_it->second.c_str());
+  }
+#endif // USE_MAC_NAME_MAPPINGS
+  if (advertisedDevice.haveName() && strlen(nameJson) == 0) {
     std::string name = advertisedDevice.getName();
     sprintf(nameJson, ", \"name\": \"%.24s\"", name.c_str());
-  } else {
-    nameJson[0] = '\0';
   }
-  
+
   sprintf(jsonBuffer,
           JSON_TEMPLATE,
           id.c_str(),
@@ -120,26 +124,32 @@ std::string formatSensorData(char * jsonBuffer, BLEAdvertisedDevice advertisedDe
 }
 
 class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
-    void onResult(BLEAdvertisedDevice advertisedDevice) {
-      std::string mac = advertisedDevice.getAddress().toString();
-      if (mac.rfind(VENDOR_PREFIX, 0) != 0) {
-        return;
-      }
-
-      BLEUUID uid = advertisedDevice.getServiceDataUUID();
-      if (!advertisedDevice.haveServiceData() || uid.toString().rfind(SERVICE_DATA_UID, 0) != 0) {
-        return;
-      }
-
-      char jsonBuffer[JSON_BUFFER_SIZE];
-      std::string id = formatSensorData(jsonBuffer, advertisedDevice);
-      char topic[sizeof(mqtt_topic) + 13];
-      sprintf(topic, "%s/%s", mqtt_topic, id.c_str());
-      mqttClient.beginMessage(topic);
-      mqttClient.print(jsonBuffer);
-      mqttClient.endMessage();
-      Serial.println(jsonBuffer);
+  void onResult(BLEAdvertisedDevice advertisedDevice) {
+    std::string mac = advertisedDevice.getAddress().toString();
+    if (mac.rfind(VENDOR_PREFIX, 0) != 0) {
+      return;
     }
+
+#ifdef ONLY_FORWARD_KNOWN_DEVICES
+    if (MAC_NAME_MAPPING.find(mac.c_str()) == MAC_NAME_MAPPING.end()) {
+      return;
+    }
+#endif // ONLY_FORWARD_KNOWN_DEVICES
+
+    BLEUUID uid = advertisedDevice.getServiceDataUUID();
+    if (!advertisedDevice.haveServiceData() || uid.toString().rfind(SERVICE_DATA_UID, 0) != 0) {
+      return;
+    }
+
+    char jsonBuffer[JSON_BUFFER_SIZE];
+    std::string id = formatSensorData(jsonBuffer, advertisedDevice, mac);
+    char topic[sizeof(mqtt_topic) + 13];
+    sprintf(topic, "%s/%s", mqtt_topic, id.c_str());
+    mqttClient.beginMessage(topic);
+    mqttClient.print(jsonBuffer);
+    mqttClient.endMessage();
+    Serial.println(jsonBuffer);
+  }
 };
 
 void setup() {
