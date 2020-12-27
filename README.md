@@ -17,16 +17,6 @@ All other Bluetooth LE advertisements will be ignored.
 
 ## Configuration
 
-### Builtin LED
-
-I found the LED to be connected to a variety of different pins on different ESP32 boards I own.
-To make the LED work on your specific board set `#define LED_BUILTIN` to the correct value.
-It might be one of the following:
-
-- ESP-WROOM-32 development board: `2`
-- WEMOS LoLin32 development board: `5`
-- ESP32 NodeMCU development board: `22`
-
 ### Wifi
 
 To configure Wifi SSID/Password and MQTT server/login/topic just edit `secrets.h` before compilation.
@@ -42,24 +32,21 @@ The payload will look something like this:
 ```
 {
   "id": "001122334455",
+  "name": "ATC_334455",
   "temperature": 20.3,
   "humidity": 55,
   "battery": 92,
   "voltage": 3030,
-  "rssi": -76,
-  "linkquality": 44,
-  "name": "ATC_334455"
+  "signal_strength": -76
 }
 ```
 
 Please note that the device *name* seems to be only randomly picked up and will be missing from the JSON object most of the time.
 However, you can manually define a name (see *Configuration*).
 
-The link quality is roughly calculated from the Bluetooth RSSI.
-RSSI values between `0` and `-20` will be considered as `100` link quality.
-RSSI values between `-20` and `-120` will be inversely proportionally mapped onto link quality values between `100` and `0`.
+The `signal_strength` is the Bluetooth RSSI.
 
-The online state will be deposited with the MQTT broker with topic `MQTT_TOPIC_STATUS`.
+The online state will be deposited with the MQTT broker with topic `MQTT_TOPIC_STATE`.
 This is done by storing a *retained* message `online` that each client will receive on subscribe.
 The message `offline` is stored as a *will* to be sent after the device disconnected from MQTT broker.
 
@@ -77,7 +64,26 @@ The following steps are necessary to activate the BME280 sensor:
   - SCK / SCL -> SCL (Serial Clock)
 - Uncomment `#include "BME280_Module.h"` to compile the necessary code for BME280 sensor.
 
+The payload will look something like this:
+
+```
+{
+  "id": "001122334455",
+  "name": "MiThermomether2MQTT",
+  "temperature": 23.67,
+  "humidity": 40.02,
+  "pressure": 979.435,
+  "signal_strength": -60
+}
+```
+
+ID (MAC address) and signal strength (RSSI) are taken from the builtin ESP32 Wifi connection.  
+The name is configured by `BME_SENSOR_NAME` in `Module_BME280.h`.
+
 If sensor code is activated but no BME280 sensor is found, a warning will be printed to serial terminal.
+
+Please note that placing both ESP32 and BME280 in the same enclosure can significantly increase the measured temperature.
+At a room temperature of 20°C you can get values above 21 or 22°C even though the sensor is fixed against a hole in the casing.
 
 ### Filter Devices (Allow List)
 
@@ -99,6 +105,23 @@ You can define a list of known devices in `secrets.h` along with custom names.
 To do this, uncomment the block starting with `#define USE_MAC_NAME_MAPPINGS` by removing `/*` and `*/`.
 Then edit the example definitions in the variable `MAC_NAME_MAPPING`.
 
+### Home Assistant Integration
+
+You can enable *Home Assistant* integration by uncommenting `#include "Module_HomeAssistant.h"`.
+This will automatically provide Home Assistant with configuration data for supported sensors via MQTT. 
+
+Please note that this only works for configured devices from *friendly device names* list (see above).  
+
+### Builtin LED
+
+I found the LED to be connected to a variety of different pins on different ESP32 boards I own.
+To make the LED work on your specific board set `#define LED_BUILTIN` to the correct value.
+It might be one of the following:
+
+- ESP-WROOM-32 development board: `2`
+- WEMOS LoLin32 development board: `5`
+- ESP32 NodeMCU development board: `22`
+
 ## Dependencies
 
 The code can be compiled with [Arduino for ESP32](https://github.com/espressif/arduino-esp32). Tested with version 1.0.4.
@@ -107,6 +130,7 @@ Furthermore, you will need the following libraries installed in your Arduino IDE
 
 - [Wifi](https://github.com/arduino-libraries/WiFi) (tested with version 1.2.7)
 - [ArduinoMqttClient](https://github.com/arduino-libraries/ArduinoMqttClient) (tested with version 0.1.5 BETA)
+- [JSON Library for Arduino](https://github.com/arduino-libraries/Arduino_JSON) (tested with version 0.1.0 BETA)
 - *(optional)* [BME280](https://github.com/finitespace/BME280) (tested with version 2.3.0)
 
 BLE is supposed to be integrated into Arduino directly now, however I could not swiftly find any documentation or source code.
@@ -114,7 +138,8 @@ However, you can refer to the [old snapshot](https://github.com/nkolban/ESP32_BL
 
 ## Caveats
 
-I implemented the project in roughly two days so there is likely much potential for optimizations and improvements.
+I implemented the initial release version in roughly two days but I kept on optimizing and improving.
+Still, there is always potential for more improvements and additional features.
 
 **Please note** that you will probably have change the partition scheme of your ESP32 to have enough program space.
 
@@ -127,7 +152,7 @@ To get this app compiled for the ESP32, in your Arduino IDE go to the *Tools* me
 
 ## Props
 
-It was only possible to get the app up and running within under two day because there were excellent examples.  
+It was only possible to get the initial release up and running within under two day because there were excellent examples and the libraries in the first place.  
 Kudos to everyone who was involved in getting this out to us!
 
 - The Bluetooth part is based on the example `BLE_scan` from [Arduino core for the ESP32](https://github.com/espressif/arduino-esp32), ported to Arduino ESP32 by Evandro Copercini.  

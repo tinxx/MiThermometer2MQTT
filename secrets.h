@@ -7,7 +7,7 @@
 #define MQTT_SERVER "192.168.1.10"
 #define MQTT_PORT 1883
 #define MQTT_TOPIC "bluetooth/sensors"
-#define MQTT_TOPIC_STATUS "bluetooth/sensors/state"
+#define MQTT_TOPIC_STATE "bluetooth/bridge/state"
 #define MQTT_CLIENTID "bluetooth_bridge"
 #define MQTT_USER "myMqttUser"
 #define MQTT_PASS "myMqttPassword"
@@ -17,7 +17,7 @@
 #define USE_MAC_NAME_MAPPINGS
 // Uncomment to forward only known devices. This is helpful if you use multiple bridges. 
 // #define ONLY_FORWARD_KNOWN_DEVICES
-// Key is the device MAC address, value is a friendly name (24 characters max).
+// Key is the device MAC address (lower key), value is a friendly name.
 #include <map>
 const std::map<std::string, std::string> MAC_NAME_MAPPING = {
     { "a4:c1:38:00:00:00", "Thermometer Livingroom" },

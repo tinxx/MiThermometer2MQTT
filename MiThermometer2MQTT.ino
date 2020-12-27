@@ -29,6 +29,11 @@
 // Wifi password and MQTT credentials are defined there. Changes are ignored by git.
 #include "secrets.h"
 
+#include "MyUtils.h"
+
+// Home Assistant integration
+// #include "Module_HomeAssistant.h"
+
 // BME280 sensor
 // #include "Module_BME280.h" // Uncomment to enable sensor
 #ifdef USE_BME280_SENSOR
@@ -47,6 +52,9 @@
 // MQTT
 #include <ArduinoMqttClient.h>
 
+// JSON
+#include <Arduino_JSON.h>
+
 WiFiClient wifiClient;
 MqttClient mqttClient(wifiClient);
 
@@ -58,28 +66,10 @@ unsigned long previousMillis = 0;
 int count = 0;
 
 
-// Thanks to Mat at StackExchange for hex string conversion.
-// https://codereview.stackexchange.com/questions/78535/converting-array-of-bytes-to-the-hex-string-representation
-constexpr char hexmap[] = {'0', '1', '2', '3', '4', '5', '6', '7',
-                           '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
-std::string hexStr(unsigned char *data, int len)
-{
-  std::string s(len * 2, ' ');
-  for (int i = 0; i < len; ++i) {
-    s[2 * i]     = hexmap[(data[i] & 0xF0) >> 4];
-    s[2 * i + 1] = hexmap[data[i] & 0x0F];
-  }
-  return s;
-}
-
 BLEScan* pBLEScan;
 
-// Bluetooth device name can be between 0 and 248 octets but we will only pass the first 24 characters.
-#define JSON_EXAMPLE "{\"id\": \"001122334455\", \"temperature\": 00.00, \"humidity\": 00, \"battery\": 00, \"voltage\": -32768, \"rssi\": -32768, \"linkquality\": 100, \"name\": \"_SHORTENED_DEVICE_NAME__\"}"
-#define JSON_TEMPLATE "{\"id\": \"%.12s\", \"temperature\": %.1f, \"humidity\": %i, \"battery\": %i, \"voltage\": %i, \"rssi\": %i, \"linkquality\": %i%s}"
-const size_t JSON_BUFFER_SIZE = sizeof(JSON_EXAMPLE);
 
-std::string formatSensorData(char * jsonBuffer, BLEAdvertisedDevice advertisedDevice, std::string mac_addr) {
+JSONVar formatSensorData(BLEAdvertisedDevice advertisedDevice, std::string mac_addr) {
   std::string sensorData = advertisedDevice.getServiceData();
   const char *sensorData_ptr = sensorData.c_str();
   std::string id = hexStr((unsigned char*)(sensorData_ptr), 6);
@@ -89,38 +79,32 @@ std::string formatSensorData(char * jsonBuffer, BLEAdvertisedDevice advertisedDe
   byte *battery_level = (byte *) (sensorData_ptr + 9);
   int16_t voltage = FLIP_ENDIAN ? __builtin_bswap16(*(int16_t *)(sensorData_ptr + 10)) : *(int16_t *)(sensorData_ptr + 10);
 
-  // RSSI (Received Signal Strength Indicator) is a negative dBm value.
-  // Lower values mean lesser signal strengths (e.g. -20 is good, -120 is bad). 
-  short rssi = advertisedDevice.haveRSSI() && advertisedDevice.getRSSI() >= -32768
-                ? advertisedDevice.getRSSI()
-                : 404;
-  size_t linkquality = 0;
-  if (rssi < 0 && rssi > -120) linkquality = rssi >= -20 ? 100 : 100 + std::round(rssi + 20);
+  JSONVar output;
+  output["id"] = id.c_str();
 
-  char nameJson[35] = "";
 #ifdef USE_MAC_NAME_MAPPINGS
   std::map<std::string, std::string>::const_iterator name_it = MAC_NAME_MAPPING.find(mac_addr);
   if (name_it != MAC_NAME_MAPPING.end()) {
-    sprintf(nameJson, ", \"name\": \"%.24s\"", name_it->second.c_str());
+    output["name"] = name_it->second.c_str();
   }
 #endif // USE_MAC_NAME_MAPPINGS
-  if (advertisedDevice.haveName() && strlen(nameJson) == 0) {
+  if (!output.hasOwnProperty("name") && advertisedDevice.haveName()) {
     std::string name = advertisedDevice.getName();
-    sprintf(nameJson, ", \"name\": \"%.24s\"", name.c_str());
+    output["name"] = name.c_str();
   }
 
-  sprintf(jsonBuffer,
-          JSON_TEMPLATE,
-          id.c_str(),
-          temperature,
-          *humidity,
-          *battery_level,
-          voltage,
-          rssi,
-          linkquality,
-          nameJson);
+  output["temperature"] = temperature;
+  output["humidity"] = *humidity;
+  output["battery"] = *battery_level;
+  output["voltage"] = voltage;
+  if (advertisedDevice.haveRSSI()) {
+    // RSSI (Received Signal Strength Indicator) is a negative dBm value.
+    // Lower values mean lesser signal strengths (e.g. -20 is good, -120 is bad). 
+    output["signal_strength"] = advertisedDevice.getRSSI();
+  }
+  output["humidity"] = *humidity;
 
-  return id;
+  return output;
 }
 
 class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
@@ -141,20 +125,26 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
       return;
     }
 
-    char jsonBuffer[JSON_BUFFER_SIZE];
-    std::string id = formatSensorData(jsonBuffer, advertisedDevice, mac);
-    char topic[sizeof(mqtt_topic) + 13];
-    sprintf(topic, "%s/%s", mqtt_topic, id.c_str());
-    mqttClient.beginMessage(topic);
-    mqttClient.print(jsonBuffer);
+    JSONVar sensorData = formatSensorData(advertisedDevice, mac);
+    String sensorDataString = JSON.stringify(sensorData);
+    const char *payload = sensorDataString.c_str();
+    String id = JSON.stringify(sensorData["id"]);
+    char topic[strlen(mqtt_topic) + 1 + id.length() + 1];
+    sprintf(topic, "%s/%.12s", mqtt_topic, id.c_str() + 1);
+    mqttClient.beginMessage(topic,
+                            sensorDataString.length(), // size
+                            false,                     // retain
+                            0,                         // qos
+                            false);                    // dup
+    mqttClient.print(payload);
     mqttClient.endMessage();
-    Serial.println(jsonBuffer);
+    Serial.println(payload);
   }
 };
 
 
 void publishState(bool online = true) {
-  char topic[] = MQTT_TOPIC_STATUS;
+  char topic[] = MQTT_TOPIC_STATE;
   mqttClient.beginMessage(topic, 
                           true, // retain
                           1);   // qos
@@ -163,7 +153,7 @@ void publishState(bool online = true) {
 }
 
 void publishWill() {
-  char topic[] = MQTT_TOPIC_STATUS;
+  char topic[] = MQTT_TOPIC_STATE;
   mqttClient.beginWill(topic, 
                        true, // retain
                        1);   // qos
@@ -172,10 +162,15 @@ void publishWill() {
 }
 
 
+std::string BOARD_UID;
+
 void setup() {
   Serial.begin(SERIAL_BAUD);
   pinMode(LED_BUILTIN, OUTPUT);
   Serial.println();
+
+  String mac = WiFi.macAddress();
+  BOARD_UID = stripColonsFromMac(mac.c_str());
 
   // BME280 setup
 #ifdef USE_BME280_SENSOR
@@ -223,6 +218,12 @@ void setup() {
   publishState();
   publishWill();
 
+  // Publish Home Assistant configurations via MQTT
+#ifdef USE_HOME_ASSISTANT
+  Serial.println("Publishing Home Assistant configs for configured sensors...");
+  publishHomeAssistantConfigs(mqttClient, BOARD_UID.c_str());
+#endif // USE_HOME_ASSISTANT
+
   Serial.println("Entering main loop...\n");
 }
 
@@ -239,14 +240,19 @@ void loop() {
 
 #ifdef USE_BME280_SENSOR
   // Process attached BME280 sensor data
-  char jsonBuffer[JSON_BUFFER_SIZE_BME];
-  std::string id = formatBmeSensorData(jsonBuffer);
-  char topic[sizeof(mqtt_topic) + sizeof(BME_MQTT_UID) + 1];
-  sprintf(topic, "%s/%s", mqtt_topic, id.c_str());
-  mqttClient.beginMessage(topic);
-  mqttClient.print(jsonBuffer);
+  JSONVar sensorData = formatBmeSensorData(BOARD_UID.c_str(), WiFi.RSSI());
+  String sensorDataString = JSON.stringify(sensorData);
+  const char *payload = sensorDataString.c_str();
+  char topic[strlen(mqtt_topic) + 1 + strlen(BOARD_UID.c_str()) + 1];
+  sprintf(topic, "%s/%.12s", mqtt_topic, BOARD_UID.c_str());
+  mqttClient.beginMessage(topic,
+                          sensorDataString.length(), // size
+                          false,                     // retain
+                          0,                         // qos
+                          false);                    // dup
+  mqttClient.print(payload);
   mqttClient.endMessage();
-  Serial.println(jsonBuffer);
+  Serial.println(payload);
 #endif // USE_BME280_SENSOR
 
     // Bluetooth scan

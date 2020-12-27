@@ -22,21 +22,26 @@ void setup_bcm280_module() {
   }
 }
 
-std::string formatBmeSensorData(char *jsonBuffer) {
-  float temp(NAN), hum(NAN), pres(NAN);
+JSONVar formatBmeSensorData(const char *uid, int rssi) {
+  float temp(NAN), humi(NAN), pres(NAN);
 
   BME280::TempUnit tempUnit(BME280::TempUnit_Celsius);
   BME280::PresUnit presUnit(BME280::PresUnit_hPa);
 
-  bme.read(pres, temp, hum, tempUnit, presUnit);
+  bme.read(pres, temp, humi, tempUnit, presUnit);
 
-  sprintf(jsonBuffer,
-        JSON_TEMPLATE_BME,
-        BME_MQTT_UID,
-        BME_MQTT_NAME,
-        temp,
-        hum,
-        pres);
+  // Clip some decimals
+  double temperature = 0.01  * (int)(temp *  100);
+  double humidity    = 0.01  * (int)(humi *  100);
+  double pressure    = 0.001 * (int)(pres * 1000);
 
-  return std::string(BME_MQTT_UID);
+  JSONVar output;
+  output["id"]              = uid;
+  output["name"]            = BME_SENSOR_NAME;
+  output["temperature"]     = temperature;
+  output["humidity"]        = humidity;
+  output["pressure"]        = pressure;
+  output["signal_strength"] = rssi;
+
+  return output;
 }
