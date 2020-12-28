@@ -7,6 +7,22 @@
    See README.md for more information.
 */
 
+// Define your configurations and credentials in the following files. Changes are ignored by git.
+#include "configs.h"
+#include "secrets.h"
+
+#if !defined(WIFI_SSID) || !defined(WIFI_PSK) || !defined(MQTT_USER) || !defined(MQTT_PASS)
+#error "Don't forget to fill your credentials in 'secrets.h'!"
+#endif // WIFI_SSID
+
+#ifdef USE_BME280_SENSOR
+#include "Module_BME280.h"
+#endif // USE_BME280_SENSOR
+
+#ifdef USE_HOME_ASSISTANT
+#include "Module_HomeAssistant.h"
+#endif // USE_HOME_ASSISTANT
+
 // Builtin LED pin
 // #define LED_BUILTIN 2 // ESP-WROOM-32 DevBoard
 #define LED_BUILTIN 5 // WEMOS LoLin32 DevBoard
@@ -26,19 +42,7 @@
 // Duration in miliseconds taken for delay between scan sessions
 #define SCAN_PAUSE 30000
 
-// Wifi password and MQTT credentials are defined there. Changes are ignored by git.
-#include "secrets.h"
-
 #include "MyUtils.h"
-
-// Home Assistant integration
-// #include "Module_HomeAssistant.h"
-
-// BME280 sensor
-// #include "Module_BME280.h" // Uncomment to enable sensor
-#ifdef USE_BME280_SENSOR
-#include <Wire.h>
-#endif // USE_BME280_SENSOR
 
 // Bluetooth
 #include <BLEDevice.h>
@@ -46,14 +50,16 @@
 #include <BLEScan.h>
 #include <BLEAdvertisedDevice.h>
 
+BLEScan* pBLEScan;
+
 // Wifi
 #include <WiFi.h>
 
-// MQTT
-#include <ArduinoMqttClient.h>
-
 // JSON
 #include <Arduino_JSON.h>
+
+// MQTT
+#include <ArduinoMqttClient.h>
 
 WiFiClient wifiClient;
 MqttClient mqttClient(wifiClient);
@@ -61,12 +67,6 @@ MqttClient mqttClient(wifiClient);
 const char mqtt_broker[] = MQTT_SERVER;
 int        mqtt_port     = MQTT_PORT;
 const char mqtt_topic[]  = MQTT_TOPIC;
-
-unsigned long previousMillis = 0;
-int count = 0;
-
-
-BLEScan* pBLEScan;
 
 
 JSONVar formatSensorData(BLEAdvertisedDevice advertisedDevice, std::string mac_addr) {
@@ -164,6 +164,9 @@ void publishWill() {
 
 std::string BOARD_UID;
 
+unsigned long previousMillis = 0;
+int count = 0;
+
 void setup() {
   Serial.begin(SERIAL_BAUD);
   pinMode(LED_BUILTIN, OUTPUT);
@@ -173,12 +176,12 @@ void setup() {
   BOARD_UID = stripColonsFromMac(mac.c_str());
 
   // BME280 setup
-#ifdef USE_BME280_SENSOR
+#ifdef MODULE_BME280_SENSOR
   Wire.begin();
   digitalWrite(LED_BUILTIN, 0);
   setup_bcm280_module();
   digitalWrite(LED_BUILTIN, 1);
-#endif // USE_BME280_SENSOR
+#endif // MODULE_BME280_SENSOR
 
   // Wifi setup
   WiFi.mode(WIFI_STA);
@@ -219,10 +222,10 @@ void setup() {
   publishWill();
 
   // Publish Home Assistant configurations via MQTT
-#ifdef USE_HOME_ASSISTANT
+#ifdef MODULE_HOME_ASSISTANT
   Serial.println("Publishing Home Assistant configs for configured sensors...");
   publishHomeAssistantConfigs(mqttClient, BOARD_UID.c_str());
-#endif // USE_HOME_ASSISTANT
+#endif // MODULE_HOME_ASSISTANT
 
   Serial.println("Entering main loop...\n");
 }
@@ -238,7 +241,7 @@ void loop() {
   if (currentMillis - previousMillis >= SCAN_PAUSE) {
     previousMillis = currentMillis;
 
-#ifdef USE_BME280_SENSOR
+#ifdef MODULE_BME280_SENSOR
   // Process attached BME280 sensor data
   JSONVar sensorData = formatBmeSensorData(BOARD_UID.c_str(), WiFi.RSSI());
   String sensorDataString = JSON.stringify(sensorData);
@@ -253,7 +256,7 @@ void loop() {
   mqttClient.print(payload);
   mqttClient.endMessage();
   Serial.println(payload);
-#endif // USE_BME280_SENSOR
+#endif // MODULE_BME280_SENSOR
 
     // Bluetooth scan
     BLEScanResults foundDevices = pBLEScan->start(SCAN_INTERVAL, false);

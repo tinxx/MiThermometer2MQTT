@@ -55,7 +55,7 @@ JSONVar formatConfigData(const char *uid,
 
 void publishHomeAssistantConfigs(MqttClient mqttClient, const char *board_uid) {
   // Configure BME280
-#ifdef USE_BME280_SENSOR
+#ifdef MODULE_BME280_SENSOR
   for (std::map<std::string, std::string>::const_iterator classAndUnit_it = BME_CLASS_UNIT_MAPPING.begin();
        classAndUnit_it != BME_CLASS_UNIT_MAPPING.end();
        classAndUnit_it++) {
@@ -87,7 +87,7 @@ void publishHomeAssistantConfigs(MqttClient mqttClient, const char *board_uid) {
     mqttClient.print(payload);
     mqttClient.endMessage();
   }
-#endif // USE_BME280_SENSOR
+#endif // MODULE_BME280_SENSOR
 
   // Configure Mi Thermometers
   for(std::map<std::string, std::string>::const_iterator sensor_it = MAC_NAME_MAPPING.begin();

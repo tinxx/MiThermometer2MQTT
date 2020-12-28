@@ -17,10 +17,11 @@ All other Bluetooth LE advertisements will be ignored.
 
 ## Configuration
 
-### Wifi
+The configuration is done in `configs.h`.  
+Also, don't forget to set your Wifi and MQTT credentials in `secrets.h`.
 
-To configure Wifi SSID/Password and MQTT server/login/topic just edit `secrets.h` before compilation.
-(The file is marked so that it will not show up as changed in git so that you don't accidentally check in your credentials.)
+*Both files are marked so that they will not show up as changed in git so that you don't accidentally check in your credentials.  
+To check in your changes, anyway, use `git update-index --no-assume-unchanged <file>`, stage your changes and before committing, use `git update-index --assume-unchanged <file>` again.*
 
 ### MQTT
 
@@ -42,7 +43,7 @@ The payload will look something like this:
 ```
 
 Please note that the device *name* seems to be only randomly picked up and will be missing from the JSON object most of the time.
-However, you can manually define a name (see *Configuration*).
+However, you can manually define a name (see [Friendly Device Names](#friendly-device-names)).
 
 The `signal_strength` is the Bluetooth RSSI.
 
@@ -62,7 +63,7 @@ The following steps are necessary to activate the BME280 sensor:
   - GND -> GND
   - SDA -> SDA (Serial Data)
   - SCK / SCL -> SCL (Serial Clock)
-- Uncomment `#include "BME280_Module.h"` to compile the necessary code for BME280 sensor.
+- Uncomment `#define USE_BME280_SENSOR"` in `configs.h` to compile the necessary code for BME280 sensor.
 
 The payload will look something like this:
 
@@ -78,7 +79,7 @@ The payload will look something like this:
 ```
 
 ID (MAC address) and signal strength (RSSI) are taken from the builtin ESP32 Wifi connection.  
-The name is configured by `BME_SENSOR_NAME` in `Module_BME280.h`.
+The name is configured by `BME_SENSOR_NAME` in `configs.h`.
 
 If sensor code is activated but no BME280 sensor is found, a warning will be printed to serial terminal.
 
@@ -96,21 +97,21 @@ There are several reasons you might want this, e.g.:
   - you want some kind of logical segmentation (i.e. different Wifi networks/MQTT servers/topics/...). 
 - You might want to avoid picking up your neighbors thermometer data, too.
 
-If that is the case, uncomment `#define ONLY_FORWARD_KNOWN_DEVICES` in `secrets.h` and read the next section about *friendly names*.
+If that is the case, uncomment `#define ONLY_FORWARD_KNOWN_DEVICES` in `configs.h` and read the next section about *friendly names*.
 
-### Freindly Device Names
+### Friendly Device Names
 
-You can define a list of known devices in `secrets.h` along with custom names.
+You can define a list of known devices in `configs.h` along with custom names.
 
-To do this, uncomment the block starting with `#define USE_MAC_NAME_MAPPINGS` by removing `/*` and `*/`.
-Then edit the example definitions in the variable `MAC_NAME_MAPPING`.
+To do this, uncomment `#define USE_MAC_NAME_MAPPINGS`.
+Then uncomment the block defining `MAC_NAME_MAPPING` by removing `/*` and `*/` and edit it to your liking.
 
 ### Home Assistant Integration
 
-You can enable *Home Assistant* integration by uncommenting `#include "Module_HomeAssistant.h"`.
+You can enable *Home Assistant* integration by uncommenting `#define USE_HOME_ASSISTANT` in `configs.h`.
 This will automatically provide Home Assistant with configuration data for supported sensors via MQTT. 
 
-Please note that this only works for configured devices from *friendly device names* list (see above).  
+Please note that this only works for configured devices from *friendly device names* mapping (see [above](#friendly-device-names)).  
 
 ### Builtin LED
 
