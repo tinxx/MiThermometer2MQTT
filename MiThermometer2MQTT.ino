@@ -11,6 +11,8 @@
 #include "configs.h"
 #include "secrets.h"
 
+#include "MyUtils.h"
+
 #if !defined(WIFI_SSID) || !defined(WIFI_PSK) || !defined(MQTT_USER) || !defined(MQTT_PASS)
 #error "Don't forget to fill your credentials in 'secrets.h'!"
 #endif // WIFI_SSID
@@ -23,26 +25,6 @@
 #include "Module_HomeAssistant.h"
 #endif // USE_HOME_ASSISTANT
 
-// Builtin LED pin
-// #define LED_BUILTIN 2 // ESP-WROOM-32 DevBoard
-#define LED_BUILTIN 5 // WEMOS LoLin32 DevBoard
-// #define LED_BUILTIN 22 // ESP32 NodeMCU DevBoard
-
-// Baud rate for serial terminal
-#define SERIAL_BAUD 115200
-
-// Flip endianness of values when interpreting data received from sensor (true for ESP32 <-> Mi Thermometer)
-#define FLIP_ENDIAN true
-// MAC address prefix of sensors
-#define VENDOR_PREFIX "a4:c1:38:"
-// Service data UID of the sensor data sent by Mi Thermometer (custom firmware)
-#define SERVICE_DATA_UID "0000181a-0000-1000-8000-00805f9b34fb"
-// Duration in seconds used for scanning sessions
-#define SCAN_INTERVAL 5
-// Duration in miliseconds taken for delay between scan sessions
-#define SCAN_PAUSE 30000
-
-#include "MyUtils.h"
 
 // Bluetooth
 #include <BLEDevice.h>

@@ -61,8 +61,8 @@ The following steps are necessary to activate the BME280 sensor:
 - Connect the sensor to your ESP32:
   - VIN -> 3.3V / 3V3 
   - GND -> GND
-  - SDA -> SDA (Serial Data)
-  - SCK / SCL -> SCL (Serial Clock)
+  - SDA -> SDA / I2C_SDA (Serial Data)
+  - SCK / SCL -> SCL / I2C_SCL (Serial Clock)
 - Uncomment `#define USE_BME280_SENSOR"` in `configs.h` to compile the necessary code for BME280 sensor.
 
 The payload will look something like this:

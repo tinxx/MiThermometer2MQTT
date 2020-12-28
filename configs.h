@@ -4,6 +4,38 @@
 const char APP_VERSION[] = "MiThermometer2MQTT 0.2";
 
 
+/************************ HARDWARE ***********************/
+
+// Builtin LED pin
+#ifndef LED_BUILTIN
+// #define LED_BUILTIN 2 // ESP-WROOM-32 DevBoard
+#define LED_BUILTIN 5 // WEMOS LoLin32 DevBoard
+// #define LED_BUILTIN 22 // ESP32 NodeMCU DevBoard
+#endif // LED_BUILTIN
+
+// Baud rate for serial terminal
+#define SERIAL_BAUD 115200
+
+// Flip endianness of values when interpreting data received from sensor (true for ESP32 <-> Mi Thermometer)
+#define FLIP_ENDIAN true
+
+
+/********************* MI THERMOMETER ********************/
+
+// MAC address prefix of sensors
+#define VENDOR_PREFIX "a4:c1:38:"
+// Service data UID of the sensor data sent by Mi Thermometer (custom firmware)
+#define SERVICE_DATA_UID "0000181a-0000-1000-8000-00805f9b34fb"
+
+
+/************************ BLUETOOTH **********************/
+
+// Duration in seconds used for scanning sessions
+#define SCAN_INTERVAL 5
+// Duration in miliseconds taken for delay between scan sessions
+#define SCAN_PAUSE 30000
+
+
 /************************** MQTT *************************/
 
 #define MQTT_SERVER "192.168.1.10"
