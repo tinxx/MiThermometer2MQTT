@@ -129,7 +129,6 @@ The code can be compiled with [Arduino for ESP32](https://github.com/espressif/a
 
 Furthermore, you will need the following libraries installed in your Arduino IDE:
 
-- [Wifi](https://github.com/arduino-libraries/WiFi) (tested with version 1.2.7)
 - [ArduinoMqttClient](https://github.com/arduino-libraries/ArduinoMqttClient) (tested with version 0.1.5 BETA)
 - [JSON Library for Arduino](https://github.com/arduino-libraries/Arduino_JSON) (tested with version 0.1.0 BETA)
 - *(optional)* [BME280](https://github.com/finitespace/BME280) (tested with version 2.3.0)
