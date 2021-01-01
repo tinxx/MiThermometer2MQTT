@@ -166,7 +166,10 @@ void setup() {
   digitalWrite(LED_BUILTIN, 1);
 #endif // MODULE_BME280_SENSOR
 
+  // Wifi config
   WiFi.mode(WIFI_STA);
+  WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE);
+  WiFi.setHostname(WIFI_HOSTNAME) && Serial.printf("Wifi hostname set to %s.\n", WIFI_HOSTNAME);
 
   // Bluetooth setup
   BLEDevice::init("");

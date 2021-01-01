@@ -2,6 +2,7 @@
 #define MI_THERMOMETER_2_MQTT_CONFIG
 
 const char APP_VERSION[] = "MiThermometer2MQTT 0.2";
+#define WIFI_HOSTNAME "MiThermometer2MQTT"
 
 
 /************************ HARDWARE ***********************/
