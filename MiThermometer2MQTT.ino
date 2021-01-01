@@ -145,6 +145,7 @@ void publishWill() {
 
 
 std::string BOARD_UID;
+bool online_state = true; // Consciously initialized `true`
 
 unsigned long previousMillis = 0;
 int count = 0;
@@ -165,30 +166,7 @@ void setup() {
   digitalWrite(LED_BUILTIN, 1);
 #endif // MODULE_BME280_SENSOR
 
-  // Wifi setup
   WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_SSID, WIFI_PSK);
-  // Wait for connection
-  while (WiFi.status() != WL_CONNECTED) {
-    digitalWrite(LED_BUILTIN, 0);
-    delay(500);
-    digitalWrite(LED_BUILTIN, 1);
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println();
-  Serial.printf("Connected to Wifi network %s (%s).\n", WIFI_SSID, WiFi.localIP().toString().c_str());
-
-  // MQTT setup
-  mqttClient.setId(MQTT_CLIENTID);
-  mqttClient.setUsernamePassword(MQTT_USER, MQTT_PASS);
-
-  Serial.printf("Attempting to connect to the MQTT broker at %s:%i.\n", mqtt_broker, mqtt_port);
-  if (!mqttClient.connect(mqtt_broker, mqtt_port)) {
-    Serial.printf("MQTT connection failed! Error code = %i\n", mqttClient.connectError());
-    while (1);
-  }
-  Serial.println("Connected to the MQTT broker.");
 
   // Bluetooth setup
   BLEDevice::init("");
@@ -198,21 +176,56 @@ void setup() {
   pBLEScan->setInterval(100);
   pBLEScan->setWindow(99);  // less or equal setInterval value
 
-  // Online state will be deposited with MQTT broker
-  Serial.println("Publishing retained online state and will...");
-  publishState();
-  publishWill();
-
-  // Publish Home Assistant configurations via MQTT
-#ifdef MODULE_HOME_ASSISTANT
-  Serial.println("Publishing Home Assistant configs for configured sensors...");
-  publishHomeAssistantConfigs(mqttClient, BOARD_UID.c_str());
-#endif // MODULE_HOME_ASSISTANT
-
-  Serial.println("Entering main loop...\n");
+  Serial.println("Entering main loop...");
 }
 
 void loop() {
+  if (WiFi.status() != WL_CONNECTED) {
+    if (online_state) {
+      Serial.print("No Wifi connection, (re)connecting");
+      WiFi.begin(WIFI_SSID, WIFI_PSK);
+      online_state = false;
+    }
+    digitalWrite(LED_BUILTIN, 0);
+    delay(500);
+    digitalWrite(LED_BUILTIN, 1);
+    delay(500);
+    Serial.print(".");
+    return;
+  }
+  if (!online_state) {
+    online_state = true;
+    Serial.printf("\nConnected to Wifi network %s (%s).\n", WIFI_SSID, WiFi.localIP().toString().c_str());
+  }
+
+  if (!mqttClient.connected()) {
+    Serial.printf("MQTT client not connected, (re)connecting to broker at %s:%i.\n", mqtt_broker, mqtt_port);
+    // Create new MQTT client
+    // FIXME: I was not able to reconnect existing client (ArduinoMqttClient version 0.1.5 BETA).
+    mqttClient = MqttClient(wifiClient);
+    mqttClient.setId(MQTT_CLIENTID);
+    mqttClient.setUsernamePassword(MQTT_USER, MQTT_PASS);
+
+    if (!mqttClient.connect(mqtt_broker, mqtt_port)) {
+      Serial.printf("MQTT connection failed! Error code = %i\n", mqttClient.connectError());
+      // Delay, so we won't bombard the MQTT server with connection attempts.
+      delay(30000);
+      return;
+    }
+    Serial.println("Connected to the MQTT broker.");
+
+    // Online state will be deposited with MQTT broker
+    Serial.println("Publishing retained online state and will...");
+    publishState();
+    publishWill();
+
+      // Publish Home Assistant configurations via MQTT
+#ifdef MODULE_HOME_ASSISTANT
+    Serial.println("Publishing Home Assistant configs for configured sensors...");
+    publishHomeAssistantConfigs(mqttClient, BOARD_UID.c_str());
+#endif // MODULE_HOME_ASSISTANT
+  }
+
   // call poll() regularly to allow the library to send MQTT keep alives which
   // avoids being disconnected by the broker
   mqttClient.poll();
