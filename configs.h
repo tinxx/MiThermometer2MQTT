@@ -1,7 +1,7 @@
 #ifndef MI_THERMOMETER_2_MQTT_CONFIG
 #define MI_THERMOMETER_2_MQTT_CONFIG
 
-const char APP_VERSION[] = "MiThermometer2MQTT 0.2";
+const char APP_VERSION[] = "MiThermometer2MQTT 0.3";
 #define WIFI_HOSTNAME "MiThermometer2MQTT"
 
 
@@ -34,7 +34,7 @@ const char APP_VERSION[] = "MiThermometer2MQTT 0.2";
 // Duration in seconds used for scanning sessions
 #define SCAN_INTERVAL 5
 // Duration in miliseconds taken for delay between scan sessions
-#define SCAN_PAUSE 30000
+#define SCAN_SESSION_INTERVAL 30000
 
 
 /************************** MQTT *************************/
@@ -55,6 +55,44 @@ const char APP_VERSION[] = "MiThermometer2MQTT 0.2";
 
 // Defined name is used to identify the sensor in the JSON payload sent via MQTT.
 #define BME_SENSOR_NAME "Thermometer Bridge"
+
+
+/******************** SSD1306 DISPLAY ********************/
+
+// Uncomment to enable SSD1306 display
+// #define USE_SSD1306_DISPLAY
+
+// Display --> ESP-WROOM-32     --> Purpose
+// -------     ------------         -------
+//     GND --> GND              --> Ground
+//     VCC --> 3V3              --> VIN (3.3V)
+//     D0  --> GPIO 18          --> SCK (SPI Clock)
+//     D1  --> GPIO 23          --> SPI MOSI (Master Out Slave In [data output from master])
+//     RES --> GPIO 19 (random) --> Reset (pick any free digital pin)
+//     DC  --> GPIO  4 (random) --> Data/Command (pick any free digital pin)
+//     CS  --> GPIO  5          --> SPI SS (Slave Select) [CS=Chip Select?]
+
+// Declaration for SSD1306 display
+#define SSD1306_OLED_DC     4
+#define SSD1306_OLED_CS     5
+#define SSD1306_OLED_RESET 19
+
+// OLED display width in pixels
+#define SSD1306_SCREEN_WIDTH 128
+// OLED display height in pixels
+#define SSD1306_SCREEN_HEIGHT 64
+
+// NTP time server to use
+#define NTP_SERVER "pool.ntp.org"
+// Offsets from UTC  are in seconds (3600 seconds = 1 hour)
+// Offset between Universal Time and your time zone
+#define UTC_OFFSET 3600
+// Offset bewteen normal time and summer time
+#define DAYLIGHT_SAVING_OFFSET 3600
+
+// Minimal refresh time of the display.
+// Note that things that are being calculated in between, e.g. bluetooth scan, might delay this. 
+#define DISPLAY_UPDATE_INTERVAL 1000
 
 
 /*************** HOME ASSISTANT INTEGRATION **************/

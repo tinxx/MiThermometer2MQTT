@@ -8,5 +8,6 @@
 
 void setup_bcm280_module();
 JSONVar formatBmeSensorData(const char *uid, int rssi);
+void printBME280Data(void (*callb) (float, float, float));
 
 #endif // MODULE_BME280_SENSOR

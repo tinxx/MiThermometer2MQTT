@@ -2,6 +2,11 @@
 
 Picks up the sensor data of Mi Thermometers with [custom firmware](https://github.com/atc1441/ATC_MiThermometer) and sends it to a MQTT broker.
 
+You can be creative with the case.
+E.g. I chose an old analog thermometer as housing for the ESP32, SSD1306 display and BME280 sensor:
+
+![Figure: Finished project built into old desktop thermometer](MiThermometer2MQTT.jpg)
+
 ## Description
 
 This is a Bluetooth Low Energy (BLE) scanner for Mi Thermometer with custom firmware programmed with Arduino for ESP32.
@@ -65,6 +70,8 @@ The following steps are necessary to activate the BME280 sensor:
   - SCK / SCL -> SCL / I2C_SCL (Serial Clock)
 - Uncomment `#define USE_BME280_SENSOR"` in `configs.h` to compile the necessary code for BME280 sensor.
 
+![Figure: BME280 sensor](bme280_i2c.svg)
+
 The payload will look something like this:
 
 ```
@@ -85,6 +92,48 @@ If sensor code is activated but no BME280 sensor is found, a warning will be pri
 
 Please note that placing both ESP32 and BME280 in the same enclosure can significantly increase the measured temperature.
 At a room temperature of 20°C you can get values above 21 or 22°C even though the sensor is fixed against a hole in the casing.
+
+### SSD1306 OLED Display
+
+You can activate an OLED display connected via SPI to view the data of the internal BME280 sensor.
+
+A simpler example without the Mi Thermometer code can be found at [ESP32SimpleClockAndThermometer](https://github.com/tinxx/ESP32SimpleClockAndThermometer).
+This is where I initially tested the display code.
+
+Actually bought it online as an I2C module but that was not true.
+I had to learn it the hard way and wasted a lot of time until I found [this tutorial for the ESP8266](https://www.instructables.com/Wemos-D1-Mini-096-SSD1306-OLED-Display-Using-SPI/) – many many thanks!  
+The interface is decided by some tiny resistors on the back. Mine was configured to use *4 wire SPI* interface (which is actually better because we it will not share the bus with the sensor and the bandwidth in comparison is much better).
+
+So here is how to wire up the display:
+
+* GND --> GND
+* VCC --> 3V3
+* D0  --> D18 (SPI Clock)
+* D1  --> D23 (SPI MOSI)
+* RES --> D19 (any free digital pin)
+* DC  --> D4  (any free digital pin)
+* CS  --> D5  (SPI SS)
+
+You can basically pick any digital pin for *D0* and *D1*
+– but don't forget to adapt the mapping in `SSD1306_128x64_SPI.h` if you pick different pins!
+
+![Figure: SSD1306 display](ssd1306_spi.svg)
+
+Now, to enable the display code, uncomment `#define USE_SSD1306_DISPLAY` in `configs.h`.
+
+I bought a two colored *monochrome* display.
+The first quarter is yellow, while the rest has blue pixels.
+It is still technically *monochrome* because each pixel is either on or off
+and the color cannot be changed programmatically.  
+I think it has a good effect for setting appart the time from the sensor data.
+
+#### Time Zone
+
+The offset between your local time and UTC is configured via `UTC_OFFSET`.  
+The offset between your local *normal* time and summer/daylihht saving time is configured as `DAYLIGHT_SAVING_OFFSET`.
+
+Please note that both values are defined in seconds.
+So e.g. for 1 hour you would set the offset to `3600`.
 
 ### Filter Devices (Allow List)
 

@@ -21,6 +21,15 @@
 #include "Module_BME280.h"
 #endif // USE_BME280_SENSOR
 
+#ifdef USE_SSD1306_DISPLAY
+#include "SSD1306_SPI.h"
+#include "time.h"
+#ifndef USE_BME280_SENSOR
+#warning "BY ENABLING SSD1306 DISPALY MODULE, BME280 SENSOR MODULE IS AUTOMATICALLY ENABLED AS WELL!"
+#define USE_BME280_SENSOR
+#endif // USE_BME280_SENSOR
+#endif // USE_SSD1306_DISPLAY
+
 #ifdef USE_HOME_ASSISTANT
 #include "Module_HomeAssistant.h"
 #endif // USE_HOME_ASSISTANT
@@ -147,8 +156,10 @@ void publishWill() {
 std::string BOARD_UID;
 bool online_state = true; // Consciously initialized `true`
 
-unsigned long previousMillis = 0;
-int count = 0;
+unsigned long previousMillisSensorInterval = 0;
+#ifdef MODULE_SSD1306_DISPLAY
+unsigned long previousMillisDisplayInterval = 0;
+#endif // MODULE_SSD1306_DISPLAY
 
 void setup() {
   Serial.begin(SERIAL_BAUD);
@@ -166,12 +177,38 @@ void setup() {
   digitalWrite(LED_BUILTIN, 1);
 #endif // MODULE_BME280_SENSOR
 
+#ifdef MODULE_SSD1306_DISPLAY
+  setup_ssd1306_module();
+#endif // MODULE_SSD1306_DISPLAY
+
   // Wifi config
   WiFi.mode(WIFI_STA);
   WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE);
   WiFi.setHostname(WIFI_HOSTNAME) && Serial.printf("Wifi hostname set to %s.\n", WIFI_HOSTNAME);
 
+  // Synchronize real time via NTP
+#ifdef MODULE_SSD1306_DISPLAY
+  configTime(UTC_OFFSET, DAYLIGHT_SAVING_OFFSET, NTP_SERVER);
+  struct tm timeinfo;
+  if(!getLocalTime(&timeinfo)){
+    Serial.println("Error: Failed to initialize RTC!");
+    drawText("Failed \n"
+             "to sync\n" 
+             "clock!",
+             2);
+    delay(500);
+  }
+  Serial.println(&timeinfo, "RTC initialized at %A, %B %d %Y %H:%M:%S");
+#endif // MODULE_SSD1306_DISPLAY
+
   // Bluetooth setup
+#ifdef MODULE_SSD1306_DISPLAY
+  drawText("Initia-\n"
+           "lizing\n" 
+           "Bluetooth",
+           2);
+  delay(500);
+#endif // MODULE_SSD1306_DISPLAY
   BLEDevice::init("");
   pBLEScan = BLEDevice::getScan(); //create new scan
   pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
@@ -186,6 +223,12 @@ void loop() {
   if (WiFi.status() != WL_CONNECTED) {
     if (online_state) {
       Serial.print("No Wifi connection, (re)connecting");
+#ifdef MODULE_SSD1306_DISPLAY
+      drawText("Connecting\n"
+               "to WiFi...",
+               2);
+      delay(500);
+#endif // MODULE_SSD1306_DISPLAY
       WiFi.begin(WIFI_SSID, WIFI_PSK);
       online_state = false;
     }
@@ -199,10 +242,24 @@ void loop() {
   if (!online_state) {
     online_state = true;
     Serial.printf("\nConnected to Wifi network %s (%s).\n", WIFI_SSID, WiFi.localIP().toString().c_str());
+#ifdef MODULE_SSD1306_DISPLAY
+    drawText("Connected\n"
+              "to WiFi\n"
+              WIFI_SSID,
+              2);
+    delay(500);
+#endif // MODULE_SSD1306_DISPLAY
   }
 
   if (!mqttClient.connected()) {
     Serial.printf("MQTT client not connected, (re)connecting to broker at %s:%i.\n", mqtt_broker, mqtt_port);
+#ifdef MODULE_SSD1306_DISPLAY
+    drawText("Connecting\n"
+              "to MQTT\n"
+              "broker...",
+              2);
+    delay(500);
+#endif // MODULE_SSD1306_DISPLAY
     // Create new MQTT client
     // FIXME: I was not able to reconnect existing client (ArduinoMqttClient version 0.1.5 BETA).
     mqttClient = MqttClient(wifiClient);
@@ -211,11 +268,25 @@ void loop() {
 
     if (!mqttClient.connect(mqtt_broker, mqtt_port)) {
       Serial.printf("MQTT connection failed! Error code = %i\n", mqttClient.connectError());
+#ifdef MODULE_SSD1306_DISPLAY
+      drawText("ERROR\n"
+               "connecting\n"
+               "to MQTT\n"
+               "broker!",
+               2);
+#endif // MODULE_SSD1306_DISPLAY
       // Delay, so we won't bombard the MQTT server with connection attempts.
       delay(30000);
       return;
     }
     Serial.println("Connected to the MQTT broker.");
+#ifdef MODULE_SSD1306_DISPLAY
+    drawText("Connected\n"
+             "to MQTT\n"
+             "broker!",
+             2);
+    delay(500);
+#endif // MODULE_SSD1306_DISPLAY
 
     // Online state will be deposited with MQTT broker
     Serial.println("Publishing retained online state and will...");
@@ -236,8 +307,15 @@ void loop() {
   // avoid having delays in loop, we'll use the strategy from BlinkWithoutDelay
   // see: File -> Examples -> 02.Digital -> BlinkWithoutDelay for more info
   unsigned long currentMillis = millis();
-  if (currentMillis - previousMillis >= SCAN_PAUSE) {
-    previousMillis = currentMillis;
+  #ifdef MODULE_SSD1306_DISPLAY
+  if (currentMillis - previousMillisDisplayInterval >= DISPLAY_UPDATE_INTERVAL) {
+    previousMillisDisplayInterval += DISPLAY_UPDATE_INTERVAL;
+    printBME280Data(&drawSensorData);
+  }
+  #endif // MODULE_SSD1306_DISPLAY
+
+  if (currentMillis - previousMillisSensorInterval >= SCAN_SESSION_INTERVAL) {
+    previousMillisSensorInterval = currentMillis;
 
 #ifdef MODULE_BME280_SENSOR
   // Process attached BME280 sensor data
