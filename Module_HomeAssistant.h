@@ -3,7 +3,7 @@
 
 #include "Arduino.h"
 #include <ArduinoMqttClient.h>
-#include <Arduino_JSON.h>
+#include <ArduinoJson.h>
 #include <map>
 #include "configs.h"
 #include "MyUtils.h"
@@ -42,6 +42,13 @@ const std::map<std::string, std::string> BME_CLASS_UNIT_MAPPING = {
 };
 #endif // MODULE_BME280_SENSOR
 
+void formatConfigData(JsonDocument& target,
+                      const char *uid,
+                      const char *name,
+                      const char *device_class,
+                      const char *unit,
+                      const char *manufacturer,
+                      const char *model);
 void publishHomeAssistantConfigs(MqttClient mqttClient, const char *board_uid);
 
 #endif // MODULE_HOME_ASSISTANT

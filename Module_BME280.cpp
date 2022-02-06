@@ -22,7 +22,7 @@ void setup_bcm280_module() {
   }
 }
 
-JSONVar formatBmeSensorData(const char *uid, int rssi) {
+void formatBmeSensorData(JsonDocument& target, const char *uid, int rssi) {
   float temp(NAN), humi(NAN), pres(NAN);
 
   BME280::TempUnit tempUnit(BME280::TempUnit_Celsius);
@@ -35,15 +35,12 @@ JSONVar formatBmeSensorData(const char *uid, int rssi) {
   double humidity    = 0.01  * (int)(humi *  100);
   double pressure    = 0.001 * (int)(pres * 1000);
 
-  JSONVar output;
-  output["id"]              = uid;
-  output["name"]            = BME_SENSOR_NAME;
-  output["temperature"]     = temperature;
-  output["humidity"]        = humidity;
-  output["pressure"]        = pressure;
-  output["signal_strength"] = rssi;
-
-  return output;
+  target["id"]              = uid;
+  target["name"]            = BME_SENSOR_NAME;
+  target["temperature"]     = temperature;
+  target["humidity"]        = humidity;
+  target["pressure"]        = pressure;
+  target["signal_strength"] = rssi;
 }
 
 void printBME280Data(void (*callb) (float, float, float)) {

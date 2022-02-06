@@ -46,7 +46,9 @@ BLEScan* pBLEScan;
 #include <WiFi.h>
 
 // JSON
-#include <Arduino_JSON.h>
+#include <ArduinoJson.h>
+// https://arduinojson.org/v6/how-to/determine-the-capacity-of-the-jsondocument/
+const int JSON_CAPACITY = 256;
 
 // MQTT
 #include <ArduinoMqttClient.h>
@@ -61,7 +63,7 @@ const char mqtt_topic[]  = MQTT_TOPIC;
 
 // -----------------------------------------------------------------------------
 
-JSONVar formatSensorData(BLEAdvertisedDevice advertisedDevice, std::string mac_addr) {
+void formatSensorData(JsonDocument& target, BLEAdvertisedDevice advertisedDevice, std::string mac_addr) {
   std::string sensorData = advertisedDevice.getServiceData();
   const char *sensorData_ptr = sensorData.c_str();
   std::string id = hexStr((unsigned char*)(sensorData_ptr), 6);
@@ -71,32 +73,29 @@ JSONVar formatSensorData(BLEAdvertisedDevice advertisedDevice, std::string mac_a
   byte *battery_level = (byte *) (sensorData_ptr + 9);
   int16_t voltage = FLIP_ENDIAN ? __builtin_bswap16(*(int16_t *)(sensorData_ptr + 10)) : *(int16_t *)(sensorData_ptr + 10);
 
-  JSONVar output;
-  output["id"] = id.c_str();
+  target["id"] = id;
 
 #ifdef USE_MAC_NAME_MAPPINGS
   std::map<std::string, std::string>::const_iterator name_it = MAC_NAME_MAPPING.find(mac_addr);
   if (name_it != MAC_NAME_MAPPING.end()) {
-    output["name"] = name_it->second.c_str();
+    target["name"] = name_it->second;
   }
 #endif // USE_MAC_NAME_MAPPINGS
-  if (!output.hasOwnProperty("name") && advertisedDevice.haveName()) {
+  if (!target.containsKey("name") && advertisedDevice.haveName()) {
     std::string name = advertisedDevice.getName();
-    output["name"] = name.c_str();
+    target["name"] = name.c_str();
   }
 
-  output["temperature"] = temperature;
-  output["humidity"] = *humidity;
-  output["battery"] = *battery_level;
-  output["voltage"] = voltage;
+  target["temperature"] = temperature;
+  target["humidity"] = *humidity;
+  target["battery"] = *battery_level;
+  target["voltage"] = voltage;
   if (advertisedDevice.haveRSSI()) {
     // RSSI (Received Signal Strength Indicator) is a negative dBm value.
     // Lower values mean lesser signal strengths (e.g. -20 is good, -120 is bad). 
-    output["signal_strength"] = advertisedDevice.getRSSI();
+    target["signal_strength"] = advertisedDevice.getRSSI();
   }
-  output["humidity"] = *humidity;
-
-  return output;
+  target["humidity"] = *humidity;
 }
 
 
@@ -120,10 +119,12 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
       return;
     }
 
-    JSONVar sensorData = formatSensorData(advertisedDevice, mac);
-    String sensorDataString = JSON.stringify(sensorData);
+    StaticJsonDocument<JSON_CAPACITY> sensorData;
+    formatSensorData(sensorData, advertisedDevice, mac);
+    String sensorDataString;
+    serializeJson(sensorData, sensorDataString);
     const char *payload = sensorDataString.c_str();
-    String id = JSON.stringify(sensorData["id"]);
+    String id = sensorData["id"].as<String>();
     char topic[strlen(mqtt_topic) + 1 + id.length() + 1];
     sprintf(topic, "%s/%.12s", mqtt_topic, id.c_str() + 1);
     mqttClient.beginMessage(topic,
@@ -259,8 +260,10 @@ void loop() {
 
 #ifdef MODULE_BME280_SENSOR
   // Process attached BME280 sensor data
-  JSONVar sensorData = formatBmeSensorData(BOARD_UID.c_str(), WiFi.RSSI());
-  String sensorDataString = JSON.stringify(sensorData);
+  StaticJsonDocument<JSON_CAPACITY> sensorData;
+  formatBmeSensorData(sensorData, BOARD_UID.c_str(), WiFi.RSSI());
+  String sensorDataString;
+  serializeJson(sensorData, sensorDataString);
   const char *payload = sensorDataString.c_str();
   char topic[strlen(mqtt_topic) + 1 + strlen(BOARD_UID.c_str()) + 1];
   sprintf(topic, "%s/%.12s", mqtt_topic, BOARD_UID.c_str());

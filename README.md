@@ -186,7 +186,7 @@ Tested with version 2.0.1.
 Furthermore, you will need the following libraries installed in your Arduino IDE:
 
 - [ArduinoMqttClient](https://github.com/arduino-libraries/ArduinoMqttClient) (tested with version 0.1.5 BETA)
-- [JSON Library for Arduino](https://github.com/arduino-libraries/Arduino_JSON) (tested with version 0.1.0 BETA)
+- [ArduinoJSON](https://github.com/bblanchon/ArduinoJson) (tested with version 6.19.1)
 - *(optional internal sensor)* [BME280](https://github.com/finitespace/BME280) (tested with version 2.3.0)
 - *(optional internal display)* [Adafruit SSD1306](https://github.com/adafruit/Adafruit_SSD1306) (tested with version 2.5.1)
 

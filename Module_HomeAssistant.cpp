@@ -6,16 +6,16 @@
 #error "To use Home Assistant integration, you need to configure MAC name mappings. Only known devices will be auto configured with Home Assistant!"
 #endif // USE_MAC_NAME_MAPPINGS
 
-JSONVar formatConfigData(const char *uid,
-                         const char *name,
-                         const char *device_class,
-                         const char *unit,
-                         const char *manufacturer,
-                         const char *model) {
-  JSONVar availabilityObject;
-  availabilityObject["topic"] = MQTT_TOPIC_STATE;
-  JSONVar availabilityList;
-  availabilityList[0] = availabilityObject;
+// https://arduinojson.org/v6/how-to/determine-the-capacity-of-the-jsondocument/
+const int HA_JSON_CAPACITY = 768;
+
+void formatConfigData(JsonDocument& target,
+                      const char *uid,
+                      const char *name,
+                      const char *device_class,
+                      const char *unit,
+                      const char *manufacturer,
+                      const char *model) {
 
   char state_topic[strlen(MQTT_TOPIC) + 1 + strlen(uid) + 1];
   sprintf(state_topic, "%s/%s", MQTT_TOPIC, uid);
@@ -23,16 +23,9 @@ JSONVar formatConfigData(const char *uid,
   char name_with_class[strlen(name) + 1 + strlen(device_class) + 1];
   sprintf(name_with_class, "%s %s", name, device_class);
 
-  JSONVar deviceObject;
-  JSONVar deviceIdentifiersList;
   char device_idetifier[strlen(IDENTIFIER_PREFIX_HA) + strlen(uid) + 1];
   sprintf(device_idetifier, "%s%.12s", IDENTIFIER_PREFIX_HA, uid);
-  deviceIdentifiersList[0] = device_idetifier;
-  deviceObject["identifiers"]  = deviceIdentifiersList;
-  deviceObject["manufacturer"] = manufacturer;
-  deviceObject["model"]        = model;
-  deviceObject["name"]         = name;
-  deviceObject["sw_version"]   = APP_VERSION;
+
 
   char unique_id[strlen(IDENTIFIER_PREFIX_HA) + strlen(uid) + 1 + strlen(device_class) + 1];
   sprintf(unique_id, "%s%.12s_%.15s", IDENTIFIER_PREFIX_HA, uid, device_class);
@@ -40,18 +33,19 @@ JSONVar formatConfigData(const char *uid,
   char value_template[VALUE_TEMPLATE_TEMPLATE_HA_CONFIG_SIZE];
   sprintf(value_template, VALUE_TEMPLATE_TEMPLATE_HA_CONFIG, device_class);
 
-  JSONVar configData;
-  configData["availability"]          = availabilityList;
-  configData["state_topic"]           = state_topic;
-  configData["json_attributes_topic"] = state_topic;
-  configData["name"]                  = name_with_class;
-  configData["device"]                = deviceObject;
-  configData["device_class"]          = device_class;
-  configData["unit_of_measurement"]   = unit;
-  configData["unique_id"]             = unique_id;
-  configData["value_template"]        = value_template;
-
-  return configData;
+  target["availability"][0]["topic"] = MQTT_TOPIC_STATE;
+  target["state_topic"]              = state_topic;
+  target["json_attributes_topic"]    = state_topic;
+  target["name"]                     = name_with_class;
+  target["device"]["identifiers"][0] = device_idetifier;
+  target["device"]["manufacturer"]   = manufacturer;
+  target["device"]["model"]          = model;
+  target["device"]["name"]           = name;
+  target["device"]["sw_version"]     = APP_VERSION;
+  target["device_class"]             = device_class;
+  target["unit_of_measurement"]      = unit;
+  target["unique_id"]                = unique_id;
+  target["value_template"]           = value_template;
 }
 
 void publishHomeAssistantConfigs(MqttClient mqttClient, const char *board_uid) {
@@ -67,13 +61,16 @@ void publishHomeAssistantConfigs(MqttClient mqttClient, const char *board_uid) {
             board_uid,
             classAndUnit_it->first.c_str());
 
-    JSONVar configData = formatConfigData(board_uid,
-                                          BME_SENSOR_NAME,
-                                          classAndUnit_it->first.c_str(),
-                                          classAndUnit_it->second.c_str(),
-                                          BME_SENSOR_MANUFACTURER,
-                                          BME_SENSOR_MODEL);
-    String configDataString = JSON.stringify(configData);
+    StaticJsonDocument<HA_JSON_CAPACITY> configData;
+    formatConfigData(configData,
+                      board_uid,
+                      BME_SENSOR_NAME,
+                      classAndUnit_it->first.c_str(),
+                      classAndUnit_it->second.c_str(),
+                      BME_SENSOR_MANUFACTURER,
+                      BME_SENSOR_MODEL);
+    String configDataString;
+    serializeJson(configData, configDataString);
     const char *payload =  configDataString.c_str();
 #ifdef PRINT_HA_CONFIGS
     Serial.println(topic);
@@ -108,13 +105,16 @@ void publishHomeAssistantConfigs(MqttClient mqttClient, const char *board_uid) {
               uid.c_str(),
               classAndUnit_it->first.c_str());
 
-      JSONVar configData = formatConfigData(uid.c_str(),
-                                            name.c_str(),
-                                            classAndUnit_it->first.c_str(),
-                                            classAndUnit_it->second.c_str(),
-                                            MI_THERMOMETER_MANUFACTURER,
-                                            MI_THERMOMETER_MODEL);
-      String configDataString = JSON.stringify(configData);
+      StaticJsonDocument<HA_JSON_CAPACITY> configData;
+      formatConfigData(configData,
+                        uid.c_str(),
+                        name.c_str(),
+                        classAndUnit_it->first.c_str(),
+                        classAndUnit_it->second.c_str(),
+                        MI_THERMOMETER_MANUFACTURER,
+                        MI_THERMOMETER_MODEL);
+      String configDataString;
+      serializeJson(configData, configDataString);
       const char *payload =  configDataString.c_str();
 
 #ifdef PRINT_HA_CONFIGS
