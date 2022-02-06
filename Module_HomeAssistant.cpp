@@ -9,6 +9,8 @@
 // https://arduinojson.org/v6/how-to/determine-the-capacity-of-the-jsondocument/
 const int HA_JSON_CAPACITY = 768;
 
+bool ha_config_published = false;
+
 void formatConfigData(JsonDocument& target,
                       const char *uid,
                       const char *name,
@@ -49,6 +51,8 @@ void formatConfigData(JsonDocument& target,
 }
 
 void publishHomeAssistantConfigs(MqttClient mqttClient, const char *board_uid) {
+  if (ha_config_published) return;
+
   // Configure BME280
   #ifdef MODULE_BME280_SENSOR
   for (std::map<std::string, std::string>::const_iterator classAndUnit_it = BME_CLASS_UNIT_MAPPING.begin();
@@ -131,6 +135,8 @@ void publishHomeAssistantConfigs(MqttClient mqttClient, const char *board_uid) {
       mqttClient.endMessage();
     }
   }
+
+  ha_config_published = true;
 }
 
 #endif //USE_HOME_ASSISTANT
