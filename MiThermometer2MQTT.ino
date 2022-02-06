@@ -124,9 +124,8 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
     String sensorDataString;
     serializeJson(sensorData, sensorDataString);
     const char *payload = sensorDataString.c_str();
-    String id = sensorData["id"].as<String>();
-    char topic[strlen(mqtt_topic) + 1 + id.length() + 1];
-    sprintf(topic, "%s/%.12s", mqtt_topic, id.c_str() + 1);
+    String id = sensorData["id"];
+    String topic = mqtt_topic + String("/") + id;
     mqttClient.beginMessage(topic,
                             sensorDataString.length(), // size
                             false,                     // retain
