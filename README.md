@@ -11,7 +11,9 @@ E.g. I chose an old analog thermometer as housing for the ESP32, SSD1306 display
 
 This is a Bluetooth Low Energy (BLE) scanner for Mi Thermometer with custom firmware programmed with Arduino for ESP32.
 
-The device scans the ether for sensor data advertised by Mi Thermometer with [custom firmware](https://github.com/atc1441/ATC_MiThermometer).  
+The device scans the ether for sensor data advertised by Mi Thermometer with [custom firmware by atc1441](https://github.com/atc1441/ATC_MiThermometer).  
+If you use the [new firmware by pvvx](https://github.com/pvvx/ATC_MiThermometer#bluetooth-advertising-formats) configure it to use the *Advertising type* `atc1441`.
+
 The sensor data is written to the serial console in JSON format and will also be sent via MQTT to a predefined topic.
 This makes it (in)directly available to your home automation central, e.g., Home Assistant, OpenHAB or Node-RED.
 

@@ -1,13 +1,13 @@
 #ifndef MI_THERMOMETER_2_MQTT_CONFIG
 #define MI_THERMOMETER_2_MQTT_CONFIG
 
-const char APP_VERSION[] = "MiThermometer2MQTT 0.3";
+const char APP_VERSION[] = "MiThermometer2MQTT 0.4";
 #define WIFI_HOSTNAME "MiThermometer2MQTT"
 
 
 /************************ HARDWARE ***********************/
 
-// Builtin LED pin
+// Builtin LED pin (if not defined by your selected board config)
 #ifndef LED_BUILTIN
 // #define LED_BUILTIN 2 // ESP-WROOM-32 DevBoard
 #define LED_BUILTIN 5 // WEMOS LoLin32 DevBoard
@@ -33,8 +33,8 @@ const char APP_VERSION[] = "MiThermometer2MQTT 0.3";
 
 // Duration in seconds used for scanning sessions
 #define SCAN_INTERVAL 5
-// Duration in miliseconds taken for delay between scan sessions
-#define SCAN_SESSION_INTERVAL 30000
+// Duration in seconds taken for delay between scan sessions
+#define SCAN_SESSION_INTERVAL 30
 
 
 /************************** MQTT *************************/
@@ -105,14 +105,9 @@ const char APP_VERSION[] = "MiThermometer2MQTT 0.3";
 
 /********************* CUSTOM NAMES **********************/
 
-// Uncomment to map names to the devices. Specify mapping in `secrets.h`.
+// Uncomment to map names to the devices.
 // #define USE_MAC_NAME_MAPPINGS
 
-// Uncomment to forward only known devices. (Only works together with name mappings.)
-// This is e.g. helpful if you use multiple bridges with overlapping ranges.
-// #define ONLY_FORWARD_KNOWN_DEVICES
-
-// If you enable `USE_MAC_NAME_MAPPINGS` in `configs.h`,
 // Uncomment the following block and fill in your mappings.
 /*
 #include <map>
@@ -123,5 +118,9 @@ const std::map<std::string, std::string> MAC_NAME_MAPPING = {
     { "a4:c1:38:22:22:22", "Thermometer Attic" }
 };
 */
+
+// Uncomment to forward only known devices defined above.
+// This is e.g. helpful if you use multiple bridges with overlapping ranges.
+// #define ONLY_FORWARD_KNOWN_DEVICES
 
 #endif // MI_THERMOMETER_2_MQTT_CONFIG

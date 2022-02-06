@@ -13,7 +13,6 @@ JSONVar formatConfigData(const char *uid,
                          const char *manufacturer,
                          const char *model) {
   JSONVar availabilityObject;
-  #define JSON_TEMPLATE_HA "{\"value_template\":\"{{ value_json.%s }}\"}"
   availabilityObject["topic"] = MQTT_TOPIC_STATE;
   JSONVar availabilityList;
   availabilityList[0] = availabilityObject;

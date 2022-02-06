@@ -25,8 +25,7 @@
 #include "SSD1306_SPI.h"
 #include "time.h"
 #ifndef USE_BME280_SENSOR
-#warning "BY ENABLING SSD1306 DISPALY MODULE, BME280 SENSOR MODULE IS AUTOMATICALLY ENABLED AS WELL!"
-#define USE_BME280_SENSOR
+#error "To use the dispaly module it is required to enable BME280 sensor module as well."
 #endif // USE_BME280_SENSOR
 #endif // USE_SSD1306_DISPLAY
 
@@ -59,6 +58,8 @@ const char mqtt_broker[] = MQTT_SERVER;
 int        mqtt_port     = MQTT_PORT;
 const char mqtt_topic[]  = MQTT_TOPIC;
 
+
+// -----------------------------------------------------------------------------
 
 JSONVar formatSensorData(BLEAdvertisedDevice advertisedDevice, std::string mac_addr) {
   std::string sensorData = advertisedDevice.getServiceData();
@@ -98,6 +99,9 @@ JSONVar formatSensorData(BLEAdvertisedDevice advertisedDevice, std::string mac_a
   return output;
 }
 
+
+// -----------------------------------------------------------------------------
+
 class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
   void onResult(BLEAdvertisedDevice advertisedDevice) {
     std::string mac = advertisedDevice.getAddress().toString();
@@ -134,6 +138,8 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
 };
 
 
+// -----------------------------------------------------------------------------
+
 void publishState(bool online = true) {
   char topic[] = MQTT_TOPIC_STATE;
   mqttClient.beginMessage(topic, 
@@ -142,6 +148,8 @@ void publishState(bool online = true) {
   mqttClient.print(online ? "online" : "offline");
   mqttClient.endMessage();
 }
+
+// ---------------------------------------------------------
 
 void publishWill() {
   char topic[] = MQTT_TOPIC_STATE;
@@ -160,6 +168,9 @@ unsigned long previousMillisSensorInterval = 0;
 #ifdef MODULE_SSD1306_DISPLAY
 unsigned long previousMillisDisplayInterval = 0;
 #endif // MODULE_SSD1306_DISPLAY
+
+
+// -----------------------------------------------------------------------------
 
 void setup() {
   Serial.begin(SERIAL_BAUD);
@@ -183,7 +194,6 @@ void setup() {
 
   // Wifi config
   WiFi.mode(WIFI_STA);
-  WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE);
   WiFi.setHostname(WIFI_HOSTNAME) && Serial.printf("Wifi hostname set to %s.\n", WIFI_HOSTNAME);
 
   // Synchronize real time via NTP
@@ -219,85 +229,15 @@ void setup() {
   Serial.println("Entering main loop...");
 }
 
+
+// -----------------------------------------------------------------------------
+
 void loop() {
-  if (WiFi.status() != WL_CONNECTED) {
-    if (online_state) {
-      Serial.print("No Wifi connection, (re)connecting");
-#ifdef MODULE_SSD1306_DISPLAY
-      drawText("Connecting\n"
-               "to WiFi...",
-               2);
-      delay(500);
-#endif // MODULE_SSD1306_DISPLAY
-      WiFi.begin(WIFI_SSID, WIFI_PSK);
-      online_state = false;
-    }
-    digitalWrite(LED_BUILTIN, 0);
-    delay(500);
-    digitalWrite(LED_BUILTIN, 1);
-    delay(500);
-    Serial.print(".");
+  checkWifi();
+  if (!checkMqtt()) {
+    // Delay, so we won't bombard the MQTT server with connection attempts.
+    delay(30000);
     return;
-  }
-  if (!online_state) {
-    online_state = true;
-    Serial.printf("\nConnected to Wifi network %s (%s).\n", WIFI_SSID, WiFi.localIP().toString().c_str());
-#ifdef MODULE_SSD1306_DISPLAY
-    drawText("Connected\n"
-              "to WiFi\n"
-              WIFI_SSID,
-              2);
-    delay(500);
-#endif // MODULE_SSD1306_DISPLAY
-  }
-
-  if (!mqttClient.connected()) {
-    Serial.printf("MQTT client not connected, (re)connecting to broker at %s:%i.\n", mqtt_broker, mqtt_port);
-#ifdef MODULE_SSD1306_DISPLAY
-    drawText("Connecting\n"
-              "to MQTT\n"
-              "broker...",
-              2);
-    delay(500);
-#endif // MODULE_SSD1306_DISPLAY
-    // Create new MQTT client
-    // FIXME: I was not able to reconnect existing client (ArduinoMqttClient version 0.1.5 BETA).
-    mqttClient = MqttClient(wifiClient);
-    mqttClient.setId(MQTT_CLIENTID);
-    mqttClient.setUsernamePassword(MQTT_USER, MQTT_PASS);
-
-    if (!mqttClient.connect(mqtt_broker, mqtt_port)) {
-      Serial.printf("MQTT connection failed! Error code = %i\n", mqttClient.connectError());
-#ifdef MODULE_SSD1306_DISPLAY
-      drawText("ERROR\n"
-               "connecting\n"
-               "to MQTT\n"
-               "broker!",
-               2);
-#endif // MODULE_SSD1306_DISPLAY
-      // Delay, so we won't bombard the MQTT server with connection attempts.
-      delay(30000);
-      return;
-    }
-    Serial.println("Connected to the MQTT broker.");
-#ifdef MODULE_SSD1306_DISPLAY
-    drawText("Connected\n"
-             "to MQTT\n"
-             "broker!",
-             2);
-    delay(500);
-#endif // MODULE_SSD1306_DISPLAY
-
-    // Online state will be deposited with MQTT broker
-    Serial.println("Publishing retained online state and will...");
-    publishState();
-    publishWill();
-
-      // Publish Home Assistant configurations via MQTT
-#ifdef MODULE_HOME_ASSISTANT
-    Serial.println("Publishing Home Assistant configs for configured sensors...");
-    publishHomeAssistantConfigs(mqttClient, BOARD_UID.c_str());
-#endif // MODULE_HOME_ASSISTANT
   }
 
   // call poll() regularly to allow the library to send MQTT keep alives which
@@ -314,7 +254,7 @@ void loop() {
   }
   #endif // MODULE_SSD1306_DISPLAY
 
-  if (currentMillis - previousMillisSensorInterval >= SCAN_SESSION_INTERVAL) {
+  if (currentMillis - previousMillisSensorInterval >= SCAN_SESSION_INTERVAL * 1000) {
     previousMillisSensorInterval = currentMillis;
 
 #ifdef MODULE_BME280_SENSOR
@@ -338,4 +278,92 @@ void loop() {
     BLEScanResults foundDevices = pBLEScan->start(SCAN_INTERVAL, false);
     pBLEScan->clearResults();   // delete results from BLEScan buffer to release memory
   }
+}
+
+
+// -----------------------------------------------------------------------------
+
+void checkWifi () {
+  if (WiFi.status() == WL_CONNECTED) return;
+
+  Serial.print("No Wifi connection, (re)connecting");
+#ifdef MODULE_SSD1306_DISPLAY
+  drawText("Connecting\n"
+            "to WiFi...",
+            2);
+  delay(500);
+#endif // MODULE_SSD1306_DISPLAY
+
+  WiFi.begin(WIFI_SSID, WIFI_PSK);
+  while (WiFi.status() != WL_CONNECTED) {
+    digitalWrite(LED_BUILTIN, 0);
+    delay(500);
+    digitalWrite(LED_BUILTIN, 1);
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.printf("\nConnected to Wifi network %s (%s).\n", WIFI_SSID, WiFi.localIP().toString().c_str());
+#ifdef MODULE_SSD1306_DISPLAY
+  drawText("Connected\n"
+            "to WiFi\n"
+            WIFI_SSID,
+            2);
+  delay(1000);
+#endif // MODULE_SSD1306_DISPLAY
+
+  return;
+}
+
+// ---------------------------------------------------------
+
+bool checkMqtt () {
+  if (mqttClient.connected()) return true;
+
+  Serial.printf("MQTT client not connected, (re)connecting to broker at %s:%i.\n", mqtt_broker, mqtt_port);
+#ifdef MODULE_SSD1306_DISPLAY
+  drawText("Connecting\n"
+            "to MQTT\n"
+            "broker...",
+            2);
+  delay(500);
+#endif // MODULE_SSD1306_DISPLAY
+  // Create new MQTT client
+  // FIXME: I was not able to reconnect existing client (ArduinoMqttClient version 0.1.5 BETA).
+  mqttClient = MqttClient(wifiClient);
+  mqttClient.setId(MQTT_CLIENTID);
+  mqttClient.setUsernamePassword(MQTT_USER, MQTT_PASS);
+
+  if (!mqttClient.connect(mqtt_broker, mqtt_port)) {
+    Serial.printf("MQTT connection failed! Error code = %i\n", mqttClient.connectError());
+#ifdef MODULE_SSD1306_DISPLAY
+    drawText("ERROR\n"
+              "connecting\n"
+              "to MQTT\n"
+              "broker!",
+              2);
+#endif // MODULE_SSD1306_DISPLAY
+    return false;
+  }
+  Serial.println("Connected to the MQTT broker.");
+#ifdef MODULE_SSD1306_DISPLAY
+  drawText("Connected\n"
+            "to MQTT\n"
+            "broker!",
+            2);
+  delay(1000);
+#endif // MODULE_SSD1306_DISPLAY
+
+  // Online state will be deposited with MQTT broker
+  Serial.println("Publishing retained online state and will...");
+  publishState();
+  publishWill();
+
+  // Publish Home Assistant configurations via MQTT
+#ifdef MODULE_HOME_ASSISTANT
+  Serial.println("Publishing Home Assistant configs for configured sensors...");
+  publishHomeAssistantConfigs(mqttClient, BOARD_UID.c_str());
+#endif // MODULE_HOME_ASSISTANT
+
+  return true;
 }

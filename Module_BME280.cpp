@@ -11,14 +11,14 @@ void setup_bcm280_module() {
 
   switch(bme.chipModel())
   {
-     case BME280::ChipModel_BME280:
-       Serial.print("Found BME280 with humidity sensor.");
-       break;
-     case BME280::ChipModel_BMP280:
-       Serial.print("Found BMP280 sensor without humidity.");
-       break;
-     default:
-       Serial.println("Error! Found UNKNOWN sensor model!");
+    case BME280::ChipModel_BME280:
+      Serial.println("Found BME280 with humidity sensor.");
+      break;
+    case BME280::ChipModel_BMP280:
+      Serial.println("Found BMP280 sensor without humidity.");
+      break;
+    default:
+      Serial.println("Error! Found UNKNOWN sensor model!");
   }
 }
 
