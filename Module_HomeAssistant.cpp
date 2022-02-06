@@ -50,7 +50,7 @@ void formatConfigData(JsonDocument& target,
 
 void publishHomeAssistantConfigs(MqttClient mqttClient, const char *board_uid) {
   // Configure BME280
-#ifdef MODULE_BME280_SENSOR
+  #ifdef MODULE_BME280_SENSOR
   for (std::map<std::string, std::string>::const_iterator classAndUnit_it = BME_CLASS_UNIT_MAPPING.begin();
        classAndUnit_it != BME_CLASS_UNIT_MAPPING.end();
        classAndUnit_it++) {
@@ -72,10 +72,10 @@ void publishHomeAssistantConfigs(MqttClient mqttClient, const char *board_uid) {
     String configDataString;
     serializeJson(configData, configDataString);
     const char *payload =  configDataString.c_str();
-#ifdef PRINT_HA_CONFIGS
+    #ifdef PRINT_HA_CONFIGS
     Serial.println(topic);
     Serial.println(payload);
-#endif // PRINT_HA_CONFIGS
+    #endif // PRINT_HA_CONFIGS
 
     mqttClient.beginMessage(topic,
                             configDataString.length(), // size
@@ -85,7 +85,7 @@ void publishHomeAssistantConfigs(MqttClient mqttClient, const char *board_uid) {
     mqttClient.print(payload);
     mqttClient.endMessage();
   }
-#endif // MODULE_BME280_SENSOR
+  #endif // MODULE_BME280_SENSOR
 
   // Configure Mi Thermometers
   for(std::map<std::string, std::string>::const_iterator sensor_it = MAC_NAME_MAPPING.begin();
@@ -117,10 +117,10 @@ void publishHomeAssistantConfigs(MqttClient mqttClient, const char *board_uid) {
       serializeJson(configData, configDataString);
       const char *payload =  configDataString.c_str();
 
-#ifdef PRINT_HA_CONFIGS
+      #ifdef PRINT_HA_CONFIGS
       Serial.println(topic);
       Serial.println(payload);
-#endif // PRINT_HA_CONFIGS
+      #endif // PRINT_HA_CONFIGS
 
       mqttClient.beginMessage(topic,
                               configDataString.length(), // size

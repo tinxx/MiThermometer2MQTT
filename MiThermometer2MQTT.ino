@@ -75,12 +75,12 @@ void formatSensorData(JsonDocument& target, BLEAdvertisedDevice advertisedDevice
 
   target["id"] = id;
 
-#ifdef USE_MAC_NAME_MAPPINGS
+  #ifdef USE_MAC_NAME_MAPPINGS
   std::map<std::string, std::string>::const_iterator name_it = MAC_NAME_MAPPING.find(mac_addr);
   if (name_it != MAC_NAME_MAPPING.end()) {
     target["name"] = name_it->second;
   }
-#endif // USE_MAC_NAME_MAPPINGS
+  #endif // USE_MAC_NAME_MAPPINGS
   if (!target.containsKey("name") && advertisedDevice.haveName()) {
     std::string name = advertisedDevice.getName();
     target["name"] = name.c_str();
@@ -108,11 +108,11 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
       return;
     }
 
-#ifdef ONLY_FORWARD_KNOWN_DEVICES
+    #ifdef ONLY_FORWARD_KNOWN_DEVICES
     if (MAC_NAME_MAPPING.find(mac.c_str()) == MAC_NAME_MAPPING.end()) {
       return;
     }
-#endif // ONLY_FORWARD_KNOWN_DEVICES
+    #endif // ONLY_FORWARD_KNOWN_DEVICES
 
     BLEUUID uid = advertisedDevice.getServiceDataUUID();
     if (!advertisedDevice.haveServiceData() || uid.toString().rfind(SERVICE_DATA_UID, 0) != 0) {
@@ -182,23 +182,23 @@ void setup() {
   BOARD_UID = stripColonsFromMac(mac.c_str());
 
   // BME280 setup
-#ifdef MODULE_BME280_SENSOR
+  #ifdef MODULE_BME280_SENSOR
   Wire.begin();
   digitalWrite(LED_BUILTIN, 0);
   setup_bcm280_module();
   digitalWrite(LED_BUILTIN, 1);
-#endif // MODULE_BME280_SENSOR
+  #endif // MODULE_BME280_SENSOR
 
-#ifdef MODULE_SSD1306_DISPLAY
+  #ifdef MODULE_SSD1306_DISPLAY
   setup_ssd1306_module();
-#endif // MODULE_SSD1306_DISPLAY
+  #endif // MODULE_SSD1306_DISPLAY
 
   // Wifi config
   WiFi.mode(WIFI_STA);
   WiFi.setHostname(WIFI_HOSTNAME) && Serial.printf("Wifi hostname set to %s.\n", WIFI_HOSTNAME);
 
   // Synchronize real time via NTP
-#ifdef MODULE_SSD1306_DISPLAY
+  #ifdef MODULE_SSD1306_DISPLAY
   configTime(UTC_OFFSET, DAYLIGHT_SAVING_OFFSET, NTP_SERVER);
   struct tm timeinfo;
   if(!getLocalTime(&timeinfo)){
@@ -210,16 +210,16 @@ void setup() {
     delay(500);
   }
   Serial.println(&timeinfo, "RTC initialized at %A, %B %d %Y %H:%M:%S");
-#endif // MODULE_SSD1306_DISPLAY
+  #endif // MODULE_SSD1306_DISPLAY
 
   // Bluetooth setup
-#ifdef MODULE_SSD1306_DISPLAY
+  #ifdef MODULE_SSD1306_DISPLAY
   drawText("Initia-\n"
            "lizing\n" 
            "Bluetooth",
            2);
   delay(500);
-#endif // MODULE_SSD1306_DISPLAY
+  #endif // MODULE_SSD1306_DISPLAY
   BLEDevice::init("");
   pBLEScan = BLEDevice::getScan(); //create new scan
   pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
@@ -258,7 +258,7 @@ void loop() {
   if (currentMillis - previousMillisSensorInterval >= SCAN_SESSION_INTERVAL * 1000) {
     previousMillisSensorInterval = currentMillis;
 
-#ifdef MODULE_BME280_SENSOR
+  #ifdef MODULE_BME280_SENSOR
   // Process attached BME280 sensor data
   StaticJsonDocument<JSON_CAPACITY> sensorData;
   formatBmeSensorData(sensorData, BOARD_UID.c_str(), WiFi.RSSI());
@@ -275,7 +275,7 @@ void loop() {
   mqttClient.print(payload);
   mqttClient.endMessage();
   Serial.println(payload);
-#endif // MODULE_BME280_SENSOR
+  #endif // MODULE_BME280_SENSOR
 
     // Bluetooth scan
     BLEScanResults foundDevices = pBLEScan->start(SCAN_INTERVAL, false);
@@ -290,12 +290,12 @@ void checkWifi () {
   if (WiFi.status() == WL_CONNECTED) return;
 
   Serial.print("No Wifi connection, (re)connecting");
-#ifdef MODULE_SSD1306_DISPLAY
+  #ifdef MODULE_SSD1306_DISPLAY
   drawText("Connecting\n"
             "to WiFi...",
             2);
   delay(500);
-#endif // MODULE_SSD1306_DISPLAY
+  #endif // MODULE_SSD1306_DISPLAY
 
   WiFi.begin(WIFI_SSID, WIFI_PSK);
   while (WiFi.status() != WL_CONNECTED) {
@@ -307,13 +307,13 @@ void checkWifi () {
   }
 
   Serial.printf("\nConnected to Wifi network %s (%s).\n", WIFI_SSID, WiFi.localIP().toString().c_str());
-#ifdef MODULE_SSD1306_DISPLAY
+  #ifdef MODULE_SSD1306_DISPLAY
   drawText("Connected\n"
             "to WiFi\n"
             WIFI_SSID,
             2);
   delay(1000);
-#endif // MODULE_SSD1306_DISPLAY
+  #endif // MODULE_SSD1306_DISPLAY
 
   return;
 }
@@ -324,13 +324,13 @@ bool checkMqtt () {
   if (mqttClient.connected()) return true;
 
   Serial.printf("MQTT client not connected, (re)connecting to broker at %s:%i.\n", mqtt_broker, mqtt_port);
-#ifdef MODULE_SSD1306_DISPLAY
+  #ifdef MODULE_SSD1306_DISPLAY
   drawText("Connecting\n"
             "to MQTT\n"
             "broker...",
             2);
   delay(500);
-#endif // MODULE_SSD1306_DISPLAY
+  #endif // MODULE_SSD1306_DISPLAY
   // Create new MQTT client
   // FIXME: I was not able to reconnect existing client (ArduinoMqttClient version 0.1.5 BETA).
   mqttClient = MqttClient(wifiClient);
@@ -339,23 +339,23 @@ bool checkMqtt () {
 
   if (!mqttClient.connect(mqtt_broker, mqtt_port)) {
     Serial.printf("MQTT connection failed! Error code = %i\n", mqttClient.connectError());
-#ifdef MODULE_SSD1306_DISPLAY
+  #ifdef MODULE_SSD1306_DISPLAY
     drawText("ERROR\n"
               "connecting\n"
               "to MQTT\n"
               "broker!",
               2);
-#endif // MODULE_SSD1306_DISPLAY
+  #endif // MODULE_SSD1306_DISPLAY
     return false;
   }
   Serial.println("Connected to the MQTT broker.");
-#ifdef MODULE_SSD1306_DISPLAY
+  #ifdef MODULE_SSD1306_DISPLAY
   drawText("Connected\n"
             "to MQTT\n"
             "broker!",
             2);
   delay(1000);
-#endif // MODULE_SSD1306_DISPLAY
+  #endif // MODULE_SSD1306_DISPLAY
 
   // Online state will be deposited with MQTT broker
   Serial.println("Publishing retained online state and will...");
@@ -363,10 +363,10 @@ bool checkMqtt () {
   publishWill();
 
   // Publish Home Assistant configurations via MQTT
-#ifdef MODULE_HOME_ASSISTANT
+  #ifdef MODULE_HOME_ASSISTANT
   Serial.println("Publishing Home Assistant configs for configured sensors...");
   publishHomeAssistantConfigs(mqttClient, BOARD_UID.c_str());
-#endif // MODULE_HOME_ASSISTANT
+  #endif // MODULE_HOME_ASSISTANT
 
   return true;
 }
