@@ -1,7 +1,9 @@
 #include "Module_HomeAssistant.h"
 
+#ifdef USE_HOME_ASSISTANT
+
 #ifndef USE_MAC_NAME_MAPPINGS
-#error "To use Home Assistant integration, you need to configure MAC name mappings.\nOnly known devices will be auto configured with Home Assistant!"
+#error "To use Home Assistant integration, you need to configure MAC name mappings. Only known devices will be auto configured with Home Assistant!"
 #endif // USE_MAC_NAME_MAPPINGS
 
 JSONVar formatConfigData(const char *uid,
@@ -131,3 +133,5 @@ void publishHomeAssistantConfigs(MqttClient mqttClient, const char *board_uid) {
     }
   }
 }
+
+#endif //USE_HOME_ASSISTANT

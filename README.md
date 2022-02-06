@@ -25,8 +25,12 @@ All other Bluetooth LE advertisements will be ignored.
 The configuration is done in `configs.h`.  
 Also, don't forget to set your Wifi and MQTT credentials in `secrets.h`.
 
-*Both files are marked so that they will not show up as changed in git so that you don't accidentally check in your credentials.  
-To check in your changes, anyway, use `git update-index --no-assume-unchanged <file>`, stage your changes and before committing, use `git update-index --assume-unchanged <file>` again.*
+**NOTE:** Both files should be marked so that changes will not show up in git and you won't accidentally check in your credentials.
+To do so, execute the following in you console or Git BASH:
+```sh
+git update-index --assume-unchanged configs.h secrets.h
+```
+(This can be undone by executing `git update-index --no-assume-unchanged <file>`.)
 
 ### MQTT
 
@@ -100,9 +104,9 @@ You can activate an OLED display connected via SPI to view the data of the inter
 A simpler example without the Mi Thermometer code can be found at [ESP32SimpleClockAndThermometer](https://github.com/tinxx/ESP32SimpleClockAndThermometer).
 This is where I initially tested the display code.
 
-Actually bought it online as an I2C module but that was not true.
+Actually I bought it online as an I2C module but that was not true.
 I had to learn it the hard way and wasted a lot of time until I found [this tutorial for the ESP8266](https://www.instructables.com/Wemos-D1-Mini-096-SSD1306-OLED-Display-Using-SPI/) – many many thanks!  
-The interface is decided by some tiny resistors on the back. Mine was configured to use *4 wire SPI* interface (which is actually better because we it will not share the bus with the sensor and the bandwidth in comparison is much better).
+The interface is decided by some tiny resistors on the back. Mine was configured to use *4 wire SPI* interface (which is actually better because it will not share the bus with the sensor and the bandwidth in comparison is much better).
 
 So here is how to wire up the display:
 
@@ -174,13 +178,15 @@ It might be one of the following:
 
 ## Dependencies
 
-The code can be compiled with [Arduino for ESP32](https://github.com/espressif/arduino-esp32). Tested with version 1.0.4.
+The code can be compiled with [Arduino for ESP32](https://github.com/espressif/arduino-esp32) ([Manual](https://docs.espressif.com/projects/arduino-esp32/en/latest/installing.html)).
+Tested with version 2.0.1.
 
 Furthermore, you will need the following libraries installed in your Arduino IDE:
 
 - [ArduinoMqttClient](https://github.com/arduino-libraries/ArduinoMqttClient) (tested with version 0.1.5 BETA)
 - [JSON Library for Arduino](https://github.com/arduino-libraries/Arduino_JSON) (tested with version 0.1.0 BETA)
-- *(optional)* [BME280](https://github.com/finitespace/BME280) (tested with version 2.3.0)
+- *(optional internal sensor)* [BME280](https://github.com/finitespace/BME280) (tested with version 2.3.0)
+- *(optional internal display)* [Adafruit SSD1306](https://github.com/adafruit/Adafruit_SSD1306) (tested with version 2.5.1)
 
 BLE is supposed to be integrated into Arduino directly now, however I could not swiftly find any documentation or source code.
 However, you can refer to the [old snapshot](https://github.com/nkolban/ESP32_BLE_Arduino/tree/master/src) for reference.

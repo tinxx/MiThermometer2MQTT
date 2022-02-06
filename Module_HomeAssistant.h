@@ -4,6 +4,7 @@
 #include "Arduino.h"
 #include <ArduinoMqttClient.h>
 #include <Arduino_JSON.h>
+#include <map>
 #include "configs.h"
 #include "MyUtils.h"
 
